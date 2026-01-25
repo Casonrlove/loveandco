@@ -1,13 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+:root {
+  --bs-primary: rgb(162, 193, 232); /* Matches top-bar blue */
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  background-color: rgb(249, 246, 240); /* Set global background color */
+  font-family: 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+html {
+  scroll-behavior: smooth;
+  overflow-y: scroll; /* Always show vertical scrollbar */
+}
+
+section {
+  padding: 60px 0;
+}
+
+.hero-section {
+    position: relative;
+    background-color: rgb(249, 246, 240); /* Background color for empty space around the image */
+}
+
+.hero-section .background-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark overlay */
+    z-index: 1; /* Ensure it's above the background image */
+}
+
+.hero-section h1, .hero-section p, .hero-section a {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    position: relative; /* Ensure text is above the overlay */
+    z-index: 2;
+}
+
+.top-bar {
+  background-color: rgb(162, 193, 232);
+}
+
+nav.navbar {
+  background-color: rgb(249, 246, 240) !important; /* Override Bootstrap's default if present */
+}
+
+nav.navbar .nav-link {
+  color: rgb(140, 182, 228) !important; /* Set font color for navigation links */
+  font-size: 1.1rem !important; /* Make navigation text a little bigger */
+}
+
+.brand-section {
+  background-color: rgb(249, 246, 240);
+}
+
+.welcome-section-bg {
+  background-color: rgb(249, 246, 240);
+}
+
+.btn-contact-submit {
+  background-color: rgb(140, 182, 228);
+  border-color: rgb(140, 182, 228);
+  color: white;
+}
+
+.text-accent-blue {
+  color: rgb(140, 182, 228);
 }

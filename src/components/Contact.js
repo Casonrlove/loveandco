@@ -1,0 +1,59 @@
+
+const Contact = () => {
+  return (
+    <section className="py-5">
+      <div className="container">
+        <h2 className="text-center">Contact</h2>
+        <div className="text-center mb-4">
+          <p>Email: <a href="mailto:loveandcoembroidery@gmail.com">loveandcoembroidery@gmail.com</a></p>
+          {/* <p>Phone: <a href="tel:555-123-4567">(555) 123-4567</a> (placeholder)</p> */}
+          <p>Instagram: <a href="https://www.instagram.com/loveandcoembroidery" target="_blank" rel="noopener noreferrer">@loveandcoembroidery</a></p>
+          <p className="mt-4">Please fill out the form below or use the contact details above to get in touch.</p>
+        </div>
+        <div className="row">
+          <div className="col-md-8 mx-auto">
+            <form>
+              <div className="mb-3">
+                <label htmlFor="name" className="form-label">Name</label>
+                <input type="text" className="form-control" id="name" required />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="email" className="form-label">Email address</label>
+                <input type="email" className="form-control" id="email" required />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="phone" className="form-label">Phone Number</label>
+                <input type="tel" className="form-control" id="phone" />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="company" className="form-label">Company Name (Optional)</label>
+                <input type="text" className="form-control" id="company" />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="service" className="form-label">Service Needed</label>
+                <select className="form-select" id="service" required>
+                  <option value="">Select a service</option>
+                  <option value="custom">Custom Embroidery</option>
+                  <option value="corporate">Corporate Apparel</option>
+                  <option value="digitizing">Digitizing Services</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="quantity" className="form-label">Quantity (e.g., "12 shirts", "50 hats")</label>
+                <input type="text" className="form-control" id="quantity" />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="message" className="form-label">Details of your Request</label>
+                <textarea className="form-control" id="message" rows="5" required></textarea>
+              </div>
+              <button type="submit" className="btn btn-contact-submit">Send Message</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default Contact;
