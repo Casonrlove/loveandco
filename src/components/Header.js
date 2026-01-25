@@ -14,7 +14,7 @@ const Header = () => {
       <div className="brand-section py-4 text-center">
         <div className="container">
           <Link className="navbar-brand" to="/">
-            <img src="/images/homepage.jpg" alt="Love & Co. Embroidery Logo" style={{ height: '80px', maxWidth: '100%' }} />
+            <img src="/images/homepage.jpg" alt="Love & Co. Embroidery Logo" style={{ height: '250px', maxWidth: '100%' }} />
           </Link>
           {/* Optional: Add a real image logo here later */}
         </div>
