@@ -5,7 +5,7 @@ const Home = () => {
   return (
     <> {/* Use React Fragment to return multiple top-level elements */}
       {/* Existing Hero Section */}
-    <section className="hero-section text-white text-center d-flex align-items-center" style={{ backgroundImage: "url('/images/hunter.JPG')", backgroundSize: '100% auto', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', minHeight: '60vh' }}>
+    <section className="hero-section text-white text-center d-flex align-items-center" style={{ backgroundImage: "url('/images/hunter.JPG')", backgroundSize: '100% auto', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', minHeight: '40vh' }}>
         <div className="background-overlay d-flex align-items-center w-100 h-100">
           <div className="container">
             {/* All text elements removed as requested */}

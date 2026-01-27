@@ -10,7 +10,9 @@ const Contact = () => {
               {/* <p>Email: <a href="mailto:loveandcoembroidery@gmail.com">loveandcoembroidery@gmail.com</a></p> */}
               {/* <p>Phone: <a href="tel:555-123-4567">(555) 123-4567</a> (placeholder)</p> */}
               {/* <p>Instagram: <a href="https://www.instagram.com/loveandcoembroidery" target="_blank" rel="noopener noreferrer">@loveandcoembroidery</a></p> */}
-              <p className="mt-4">Please fill out the form below or use the contact details above to get in touch.</p>
+              <p className="mt-4">Have a custom project in mind or a question about an order? I’d love to hear from you.
+Fill out the form below with a few details, and I’ll be in touch soon to bring your vision to life.
+</p>
             </div>
           </div>
         </div>

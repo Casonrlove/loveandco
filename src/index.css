@@ -46,6 +46,8 @@ section {
 
 .custom-navbar {
   background-color: rgb(249, 246, 240) !important; /* Override Bootstrap's default if present */
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
 }
 
 .custom-navbar .nav-link {
