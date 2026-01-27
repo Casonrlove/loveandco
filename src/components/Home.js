@@ -52,38 +52,90 @@ const Home = () => {
             <Carousel.Item>
               <img
                 className="d-block mx-auto"
-                src="/images/IMG_3415.png"
+                src="/images/Scroll_1.jpg"
                 alt="First slide"
-                style={{ maxWidth: '800px', height: 'auto' }}
+                style={{ maxWidth: '600px', height: 'auto' }}
               />
               <Carousel.Caption>
-                <h3>Custom Projects</h3>
-                <p>Beautiful bespoke embroidery for any occasion.</p>
+                {/* <h3>Custom Projects</h3>
+                <p>Beautiful bespoke embroidery for any occasion.</p> */}
               </Carousel.Caption>
             </Carousel.Item>
             <Carousel.Item>
               <img
                 className="d-block mx-auto"
-                src="/images/IMG_2886.png"
+                src="/images/Scroll_2.jpg"
                 alt="Second slide"
-                style={{ maxWidth: '800px', height: 'auto' }}
+                style={{ maxWidth: '600px', height: 'auto' }}
               />
               <Carousel.Caption>
-                <h3>Personalized Gifts</h3>
-                <p>Thoughtful and unique items for your loved ones.</p>
+                {/* <h3>Personalized Gifts</h3>
+                <p>Thoughtful and unique items for your loved ones.</p> */}
               </Carousel.Caption>
             </Carousel.Item>
-            {/* <Carousel.Item>
+            <Carousel.Item>
               <img
-                className="d-block w-100"
-                src="/images/wedding_picture.JPG"
+                className="d-block mx-auto"
+                src="/images/Scroll_3.jpg"
                 alt="Third slide"
+                style={{ maxWidth: '600px', height: 'auto' }}
               />
               <Carousel.Caption>
-                <h3>Heirloom Quality</h3>
-                <p>Creating cherished pieces that last for generations.</p>
+                {/* <h3>Heirloom Quality</h3>
+                <p>Creating cherished pieces that last for generations.</p> */}
               </Carousel.Caption>
-            </Carousel.Item> */}
+            </Carousel.Item>
+            <Carousel.Item>
+              <img
+                className="d-block mx-auto"
+                src="/images/Gift_4.jpg"
+                alt="Third slide"
+                style={{ maxWidth: '600px', height: 'auto' }}
+              />
+              <Carousel.Caption>
+                {/* <h3>Heirloom Quality</h3>
+                <p>Creating cherished pieces that last for generations.</p> */}
+              </Carousel.Caption>
+            </Carousel.Item>
+
+            <Carousel.Item>
+              <img
+                className="d-block mx-auto"
+                src="/images/Home_1.PNG"
+                alt="Third slide"
+                style={{ maxWidth: '600px', height: 'auto' }}
+              />
+              <Carousel.Caption>
+                {/* <h3>Heirloom Quality</h3>
+                <p>Creating cherished pieces that last for generations.</p> */}
+              </Carousel.Caption>
+            </Carousel.Item>
+
+            <Carousel.Item>
+              <img
+                className="d-block mx-auto"
+                src="/images/Baby_4.png"
+                alt="Third slide"
+                style={{ maxWidth: '600px', height: 'auto' }}
+              />
+              <Carousel.Caption>
+                {/* <h3>Heirloom Quality</h3>
+                <p>Creating cherished pieces that last for generations.</p> */}
+              </Carousel.Caption>
+            </Carousel.Item>
+
+            <Carousel.Item>
+              <img
+                className="d-block mx-auto"
+                src="/images/Baby_2.PNG"
+                alt="Third slide"
+                style={{ maxWidth: '600px', height: 'auto' }}
+              />
+              <Carousel.Caption>
+                {/* <h3>Heirloom Quality</h3>
+                <p>Creating cherished pieces that last for generations.</p> */}
+              </Carousel.Caption>
+            </Carousel.Item>
           </Carousel>
         </div>
       </section>

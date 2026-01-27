@@ -4,15 +4,19 @@ const Contact = () => {
     <section className="py-5">
       <div className="container">
         <h2 className="text-center">Contact</h2>
-        <div className="text-center mb-4">
-          <p>Email: <a href="mailto:loveandcoembroidery@gmail.com">loveandcoembroidery@gmail.com</a></p>
-          {/* <p>Phone: <a href="tel:555-123-4567">(555) 123-4567</a> (placeholder)</p> */}
-          <p>Instagram: <a href="https://www.instagram.com/loveandcoembroidery" target="_blank" rel="noopener noreferrer">@loveandcoembroidery</a></p>
-          <p className="mt-4">Please fill out the form below or use the contact details above to get in touch.</p>
+        <div className="row">
+          <div className="col-md-8 mx-auto">
+            <div className="mb-4">
+              {/* <p>Email: <a href="mailto:loveandcoembroidery@gmail.com">loveandcoembroidery@gmail.com</a></p> */}
+              {/* <p>Phone: <a href="tel:555-123-4567">(555) 123-4567</a> (placeholder)</p> */}
+              {/* <p>Instagram: <a href="https://www.instagram.com/loveandcoembroidery" target="_blank" rel="noopener noreferrer">@loveandcoembroidery</a></p> */}
+              <p className="mt-4">Please fill out the form below or use the contact details above to get in touch.</p>
+            </div>
+          </div>
         </div>
         <div className="row">
           <div className="col-md-8 mx-auto">
-            <form>
+            <form name="contact" method="POST" data-netlify="true">
               <div className="mb-3">
                 <label htmlFor="name" className="form-label">Name</label>
                 <input type="text" className="form-control" id="name" required />

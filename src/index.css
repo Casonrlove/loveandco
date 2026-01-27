@@ -44,11 +44,11 @@ section {
   background-color: rgb(162, 193, 232);
 }
 
-nav.navbar {
+.custom-navbar {
   background-color: rgb(249, 246, 240) !important; /* Override Bootstrap's default if present */
 }
 
-nav.navbar .nav-link {
+.custom-navbar .nav-link {
   color: rgb(140, 182, 228) !important; /* Set font color for navigation links */
   font-size: 1.1rem !important; /* Make navigation text a little bigger */
 }

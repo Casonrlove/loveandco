@@ -1,20 +1,23 @@
-import React from 'react';
 
 const About = () => {
   return (
     <section className="py-5">
       <div className="container">
-        <div className="row align-items-center">
-          <div className="col-md-6 order-md-2">
-            <img src="https://picsum.photos/500/400" className="img-fluid" alt="About Love & Co. Embroidery" />
-          </div>
-          <div className="col-md-6 order-md-1">
-            <h2 className="mb-4">About</h2>
-            <p>
-              Love & Co. Embroidery is dedicated to providing high-quality, custom embroidery services for businesses, organizations, and individuals. With years of experience and a passion for craftsmanship, we transform your designs and logos into stunning, durable embroidered apparel and accessories.
+                  <div className="row align-items-center">
+                    <div className="col-md-6 order-md-1">
+                      <img src='/images/wedding_picture.JPG' className="img-fluid" alt="About Love & Co. Embroidery" style={{ maxHeight: '500px', maxWidth: '100%', height: 'auto' }} />
+                    </div>
+                    <div className="col-md-6 order-md-2">
+                      <h2 className="mb-4 text-center">About</h2>            <p>
+              Hi, I’m Anna — the heart behind Love & Co. Embroidery.
+              What started as a love for thoughtful details and meaningful keepsakes turned into a small business
+              dedicated to creating custom embroidered pieces that feel personal, timeless, and made just for you.
             </p>
             <p>
-              Our commitment to excellence ensures every stitch is perfect, delivering results that not only look great but also stand the test of time. We pride ourselves on our attention to detail, personalized customer service, and efficient project turnaround.
+              When I’m not embroidering I’m likely sipping on a coffee, in my kitchen baking, or soaking up time with my loved ones.
+            </p>
+            <p>
+              At Love & Co. Embroidery, it’s always about the little things — because those are the ones that matter most.
             </p>
           </div>
         </div>
@@ -24,3 +27,4 @@ const About = () => {
 };
 
 export default About;
+

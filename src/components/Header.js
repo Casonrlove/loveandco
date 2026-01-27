@@ -1,8 +1,11 @@
+import Container from 'react-bootstrap/Container';
+import Nav from 'react-bootstrap/Nav';
+import Navbar from 'react-bootstrap/Navbar';
 import { Link } from 'react-router-dom';
 
 const Header = () => {
   return (
-    <header style={{ position: 'fixed', width: '100%', top: 0, zIndex: 1030 }}>
+    <header>
       {/* Top Announcement Bar */}
       <div className="top-bar text-dark p-1 text-center">
         <div className="container">
@@ -21,30 +24,19 @@ const Header = () => {
       </div>
 
       {/* Main Navigation Bar */}
-      <nav className="navbar navbar-expand-lg navbar-light">
-        <div className="container-fluid">
-          {/* Toggler button for responsive navigation */}
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav mx-auto"> {/* Centered navigation */}
-              <li className="nav-item">
-                <Link className="nav-link" to="/">Home</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/about">About</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/collections">Collections</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/contact">Contact</Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
+      <Navbar expand="lg" variant="light" className="custom-navbar">
+        <Container fluid>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="mx-auto"> {/* Centered navigation */}
+              <Nav.Link as={Link} to="/">Home</Nav.Link>
+              <Nav.Link as={Link} to="/about">About</Nav.Link>
+              <Nav.Link as={Link} to="/collections">Collections</Nav.Link>
+              <Nav.Link as={Link} to="/contact">Contact</Nav.Link>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
     </header>
   );
 };

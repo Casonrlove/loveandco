@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Header from './components/Header';
-import Home from './components/Home';
+import { useEffect } from 'react';
+import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import About from './components/About';
-import Services from './components/Services';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
+import Header from './components/Header';
+import Home from './components/Home';
+import Services from './components/Services'; // This is now the Collections overview page
+import BabyCollection from './components/collections/BabyCollection';
+import HomeCollection from './components/collections/HomeCollection';
+import GiftCollection from './components/collections/GiftCollection';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -22,11 +25,14 @@ function App() {
     <Router>
       <ScrollToTop />
       <Header />
-      <main style={{ paddingTop: '200px' }}>
+      <main>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/collections" element={<Services />} />
+          <Route path="/collections/baby" element={<BabyCollection />} />
+          <Route path="/collections/home" element={<HomeCollection />} />
+          <Route path="/collections/gift" element={<GiftCollection />} />
           <Route path="/contact" element={<Contact />} />
         </Routes>
       </main>
