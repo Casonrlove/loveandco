@@ -19,25 +19,26 @@ Fill out the form below with a few details, and I’ll be in touch soon to bring
         <div className="row">
           <div className="col-md-8 mx-auto">
             <form name="contact" method="POST" data-netlify="true">
+              <input type="hidden" name="form-name" value="contact" />
               <div className="mb-3">
                 <label htmlFor="name" className="form-label">Name</label>
-                <input type="text" className="form-control" id="name" required />
+                <input type="text" className="form-control" id="name" name="name" required />
               </div>
               <div className="mb-3">
                 <label htmlFor="email" className="form-label">Email address</label>
-                <input type="email" className="form-control" id="email" required />
+                <input type="email" className="form-control" id="email" name="email" required />
               </div>
               <div className="mb-3">
                 <label htmlFor="phone" className="form-label">Phone Number</label>
-                <input type="tel" className="form-control" id="phone" />
+                <input type="tel" className="form-control" id="phone" name="phone" />
               </div>
               <div className="mb-3">
                 <label htmlFor="company" className="form-label">Company Name (Optional)</label>
-                <input type="text" className="form-control" id="company" />
+                <input type="text" className="form-control" id="company" name="company" />
               </div>
               <div className="mb-3">
                 <label htmlFor="service" className="form-label">Service Needed</label>
-                <select className="form-select" id="service" required>
+                <select className="form-select" id="service" name="service" required>
                   <option value="">Select a service</option>
                   <option value="custom">Custom Embroidery</option>
                   <option value="corporate">Corporate Apparel</option>
@@ -47,11 +48,11 @@ Fill out the form below with a few details, and I’ll be in touch soon to bring
               </div>
               <div className="mb-3">
                 <label htmlFor="quantity" className="form-label">Quantity (e.g., "12 shirts", "50 hats")</label>
-                <input type="text" className="form-control" id="quantity" />
+                <input type="text" className="form-control" id="quantity" name="quantity" />
               </div>
               <div className="mb-3">
                 <label htmlFor="message" className="form-label">Details of your Request</label>
-                <textarea className="form-control" id="message" rows="5" required></textarea>
+                <textarea className="form-control" id="message" name="message" rows="5" required></textarea>
               </div>
               <button type="submit" className="btn btn-contact-submit">Send Message</button>
             </form>
