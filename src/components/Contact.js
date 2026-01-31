@@ -18,8 +18,9 @@ Fill out the form below with a few details, and I’ll be in touch soon to bring
         </div>
         <div className="row">
           <div className="col-md-8 mx-auto">
-            <form name="contact" method="POST" data-netlify="true">
+            <form name="contact" method="POST" netlify netlify-honeypot="bot-field">
               <input type="hidden" name="form-name" value="contact" />
+              <input name="bot-field" style={{ display: 'none' }} />
               <div className="mb-3">
                 <label htmlFor="name" className="form-label">Name</label>
                 <input type="text" className="form-control" id="name" name="name" required />
