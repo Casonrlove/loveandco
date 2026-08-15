@@ -1,0 +1,91 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+export default function ProductGallery({ images, name, compact, onActivate }) {
+  const photos = (images || []).filter(Boolean);
+  const scroller = useRef(null);
+  const pointer = useRef(null);
+  const drag = useRef(null);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+    if (scroller.current) scroller.current.scrollLeft = 0;
+  }, [photos.join('|')]);
+
+  if (photos.length === 0) return null;
+
+  const goTo = (next) => {
+    const el = scroller.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(photos.length - 1, next));
+    setIndex(clamped);
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
+  };
+
+  const onScroll = () => {
+    const el = scroller.current;
+    if (!el || !el.clientWidth) return;
+    const next = Math.round(el.scrollLeft / el.clientWidth);
+    if (next !== index && next >= 0 && next < photos.length) setIndex(next);
+  };
+
+  const onPointerDown = (event) => {
+    const el = scroller.current;
+    pointer.current = { x: event.clientX, y: event.clientY };
+    if (!el || photos.length < 2) return;
+    drag.current = { startX: event.clientX, startScroll: el.scrollLeft };
+    el.setPointerCapture?.(event.pointerId);
+  };
+
+  const onPointerMove = (event) => {
+    const el = scroller.current;
+    const current = drag.current;
+    if (!el || !current) return;
+    el.scrollLeft = current.startScroll - (event.clientX - current.startX);
+  };
+
+  const onPointerUp = (event) => {
+    const start = pointer.current;
+    const el = scroller.current;
+    pointer.current = null;
+    drag.current = null;
+    if (el && photos.length > 1) goTo(Math.round(el.scrollLeft / Math.max(el.clientWidth, 1)));
+    if (!start || !onActivate) return;
+    const dx = Math.abs(event.clientX - start.x);
+    const dy = Math.abs(event.clientY - start.y);
+    if (dx < 10 && dy < 10) onActivate();
+  };
+
+  return (
+    <div className={`item-gallery${compact ? ' is-compact' : ''}${photos.length > 1 ? ' is-swipeable' : ''}`}>
+      <div
+        className="item-swipe"
+        ref={scroller}
+        onScroll={onScroll}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        {photos.map((src) => (
+          <img key={src} src={src} alt={name} draggable={false} />
+        ))}
+      </div>
+      {photos.length > 1 && (
+        <div className="item-dots" aria-hidden="true">
+          {photos.map((src, i) => (
+            <button
+              key={src}
+              type="button"
+              className={i === index ? 'is-active' : ''}
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); goTo(i); }}
+              aria-label={`Photo ${i + 1} of ${photos.length}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
