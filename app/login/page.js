@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+
+import { safeNextPath } from '@/lib/security';
 import { redirect } from 'next/navigation';
 import AuthForm from '@/components/AuthForm';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
@@ -8,7 +11,7 @@ export const metadata = { title: 'Sign in · Love & Co. Embroidery' };
 export default async function LoginPage({ searchParams }) {
   const params = await searchParams;
   const requestedPath = params?.next || '/account';
-  const nextPath = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/account';
+  const nextPath = safeNextPath(requestedPath);
   const user = await getSessionProfile();
   if (user) redirect(nextPath);
 

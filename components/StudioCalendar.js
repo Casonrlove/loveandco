@@ -1,5 +1,7 @@
 'use client';
 
+import { useModalFocus } from '@/lib/use-modal-focus';
+
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'react-bootstrap-icons';
 import { formatDate, localDateKey } from '@/lib/scheduler';
@@ -42,6 +44,7 @@ export default function StudioCalendar({
   onSetDaysOff,
   onOpenOrder,
 }) {
+  const dialog = useModalFocus(open, onClose);
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState(localDateKey(new Date()));
   const [offMode, setOffMode] = useState(false);
@@ -57,7 +60,7 @@ export default function StudioCalendar({
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (event.target.closest('input, textarea, select, [contenteditable]')) return;
       if (event.key === 'o' || event.key === 'O') onToggleDayOff(selected);
       if (event.key === 'm' || event.key === 'M') setOffMode((value) => !value);
     };
@@ -93,7 +96,7 @@ export default function StudioCalendar({
   };
 
   return (
-    <div className="cal-overlay" role="dialog" aria-modal="true" aria-labelledby="cal-title">
+    <div ref={dialog} tabIndex={-1} className="cal-overlay" role="dialog" aria-modal="true" aria-labelledby="cal-title">
       <button className="cal-scrim" type="button" aria-label="Close calendar" onClick={onClose} />
       <section className="cal-sheet">
         <header className="cal-head">

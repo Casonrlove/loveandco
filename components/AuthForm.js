@@ -31,7 +31,7 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
     setError('');
     setMessage('');
     if (!configured) {
-      setError('Connect a Supabase project to enable live accounts.');
+      setError('Sign-in is temporarily unavailable. Please try again later.');
       return;
     }
     setGooglePending(true);
@@ -52,7 +52,7 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
     setError('');
     setMessage('');
     if (!configured) {
-      setError('Connect a Supabase project to enable live accounts.');
+      setError('Sign-in is temporarily unavailable. Please try again later.');
       return;
     }
 
@@ -86,7 +86,7 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
   return (
     <form onSubmit={submit} className="auth-card">
       <p className="eyebrow">YOUR ACCOUNT</p>
-      <h2>{mode === 'signin' ? 'Welcome back.' : 'Save your orders.'}</h2>
+      <h1>{mode === 'signin' ? 'Welcome back.' : 'Save your orders.'}</h1>
       <p>{mode === 'signin' ? 'Sign in to see order status and tracking.' : 'Create an account with the same email you use at checkout.'}</p>
       <div className="studio-tabs compact">
         <button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>Sign in</button>
@@ -97,11 +97,11 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
         {googlePending ? 'Connecting…' : 'Continue with Google'}
       </button>
       <p className="auth-divider"><span>or use email</span></p>
-      {mode === 'signup' && <label>Name<input required value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" /></label>}
-      <label>Email<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
-      <label>Password<input type="password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} /></label>
+      {mode === 'signup' && <label>Name<input name="name" required value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" /></label>}
+      <label>Email<input name="email" spellCheck={false} type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
+      <label>Password<input name="password" type="password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} /></label>
       {mode === 'signin' && <p className="helper"><Link href="/forgot-password">Forgot password?</Link></p>}
-      {!configured && <p className="helper">Auth is ready. Add the Supabase public environment variables to activate it.</p>}
+      {!configured && <p className="helper">Sign-in is temporarily unavailable. You can still browse the shop.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       <button className="studio-primary" disabled={pending || googlePending || !configured} type="submit">{pending ? 'One moment…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>

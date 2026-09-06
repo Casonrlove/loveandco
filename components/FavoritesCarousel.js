@@ -1,21 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import StoreImage from './StoreImage';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'react-bootstrap-icons';
 
 export default function FavoritesCarousel({ items }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const count = items.length;
-
-  useEffect(() => {
-    if (count < 2 || paused) return undefined;
-    const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % count);
-    }, 4500);
-    return () => window.clearInterval(timer);
-  }, [count, paused]);
 
   if (!count) return null;
   const visibleCount = Math.min(3, count);
@@ -26,14 +19,12 @@ export default function FavoritesCarousel({ items }) {
   return (
     <div
       className="favorites-carousel"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
     >
       <div className="favorites-stage">
         <div className="favorites-track">
           {visible.map((item) => (
-            <Link className="favorites-slide" href={item.href} key={`${item.href}-${index}`}>
-              <img src={item.image} alt={item.name} />
+            <Link className="favorites-slide" href={item.href} key={item.href}>
+              <StoreImage src={item.image} alt={item.name} width="600" height="600" loading="lazy" />
               <div className="favorites-slide-copy">
                 <h3>{item.name}</h3>
                 <span>{item.price}</span>

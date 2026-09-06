@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import StoreImage from './StoreImage';
 
-export default function ProductGallery({ images, name, compact, onActivate }) {
+import { useRef, useState } from 'react';
+
+export default function ProductGallery(props) {
+  return <Gallery key={(props.images || []).join('|')} {...props} />;
+}
+
+function Gallery({ images, name, compact, onActivate }) {
   const photos = (images || []).filter(Boolean);
   const scroller = useRef(null);
   const pointer = useRef(null);
   const drag = useRef(null);
   const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    setIndex(0);
-    if (scroller.current) scroller.current.scrollLeft = 0;
-  }, [photos.join('|')]);
 
   if (photos.length === 0) return null;
 
@@ -21,7 +22,7 @@ export default function ProductGallery({ images, name, compact, onActivate }) {
     if (!el) return;
     const clamped = Math.max(0, Math.min(photos.length - 1, next));
     setIndex(clamped);
-    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' });
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
 
   const onScroll = () => {
@@ -63,6 +64,12 @@ export default function ProductGallery({ images, name, compact, onActivate }) {
       <div
         className="item-swipe"
         ref={scroller}
+        role={onActivate ? 'button' : undefined}
+        tabIndex={onActivate ? 0 : undefined}
+        aria-label={onActivate ? `View ${name}` : undefined}
+        onKeyDown={(event) => {
+          if (onActivate && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onActivate(); }
+        }}
         onScroll={onScroll}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -70,11 +77,11 @@ export default function ProductGallery({ images, name, compact, onActivate }) {
         onPointerCancel={onPointerUp}
       >
         {photos.map((src) => (
-          <img key={src} src={src} alt={name} draggable={false} />
+          <StoreImage key={src} src={src} alt={name} width="600" height="600" loading="lazy" draggable={false} />
         ))}
       </div>
       {photos.length > 1 && (
-        <div className="item-dots" aria-hidden="true">
+        <div className="item-dots" aria-label="Product photos">
           {photos.map((src, i) => (
             <button
               key={src}

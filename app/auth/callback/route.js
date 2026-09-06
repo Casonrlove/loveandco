@@ -1,3 +1,4 @@
+import { safeNextPath } from '@/lib/security';
 import { NextResponse } from 'next/server';
 import { claimOrdersForUser } from '@/lib/store';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
@@ -8,7 +9,7 @@ export async function GET(request) {
   const code = searchParams.get('code');
   const providerError = searchParams.get('error');
   const requestedPath = searchParams.get('next') || '/account';
-  const next = requestedPath.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/account';
+  const next = safeNextPath(requestedPath);
 
   if (!hasSupabaseConfig()) return NextResponse.redirect(`${origin}/login`);
   if (providerError) {
@@ -20,7 +21,7 @@ export async function GET(request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) await claimOrdersForUser(user.id, user.email).catch(() => {});
+      if (user?.email && user.email_confirmed_at) await claimOrdersForUser(user.id, user.email).catch(() => {});
       return NextResponse.redirect(`${origin}${next}`);
     }
     return NextResponse.redirect(`${origin}/login?error=auth_retry`);

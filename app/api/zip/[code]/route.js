@@ -5,6 +5,7 @@ export async function GET(_request, { params }) {
   }
 
   const response = await fetch(`https://api.zippopotam.us/us/${code}`, {
+    signal: AbortSignal.timeout(5000),
     headers: { Accept: 'application/json' },
     next: { revalidate: 86400 },
   }).catch(() => null);

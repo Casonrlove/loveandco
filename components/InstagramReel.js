@@ -1,5 +1,9 @@
 'use client';
 
+import StoreImage from './StoreImage';
+
+import { useModalFocus } from '@/lib/use-modal-focus';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { INSTAGRAM_PROFILE, INSTAGRAM_USERNAME } from '@/lib/instagram-profile';
@@ -13,6 +17,7 @@ function formatPosted(value) {
 
 export default function InstagramReel({ posts }) {
   const [openId, setOpenId] = useState('');
+  const dialog = useModalFocus(Boolean(openId), () => setOpenId(''));
   const open = posts.find((post) => post.id === openId);
 
   return (
@@ -24,9 +29,9 @@ export default function InstagramReel({ posts }) {
           {posts.map((post) => (
             <button type="button" className="reel-item" key={post.id} onClick={() => setOpenId(post.id)} aria-label={post.caption ? post.caption.slice(0, 80) : 'Open Instagram post'}>
               {post.type === 'VIDEO' ? (
-                <video src={post.url} muted playsInline preload="metadata" />
+                <video src={post.url} aria-hidden="true" muted playsInline preload="none" />
               ) : (
-                <img src={post.url} alt="" />
+                <StoreImage src={post.url} alt="" />
               )}
             </button>
           ))}
@@ -38,21 +43,21 @@ export default function InstagramReel({ posts }) {
       )}
 
       {open && (
-        <div className="instagram-overlay" role="dialog" aria-modal="true" aria-labelledby="instagram-post-title">
+        <div ref={dialog} tabIndex={-1} className="instagram-overlay" role="dialog" aria-modal="true" aria-labelledby="instagram-post-title">
           <button type="button" className="instagram-scrim" aria-label="Close post" onClick={() => setOpenId('')} />
           <article className="instagram-post">
             <button type="button" className="drawer-close" onClick={() => setOpenId('')} aria-label="Close">×</button>
             {open.type === 'VIDEO' ? (
               <video src={open.url} controls playsInline />
             ) : (
-              <img src={open.url} alt="" />
+              <StoreImage src={open.url} alt="" />
             )}
             {open.children?.length > 1 && (
               <div className="instagram-thumbs">
                 {open.children.map((child) => (
                   child.type === 'VIDEO'
-                    ? <video key={child.id} src={child.url} muted playsInline />
-                    : <img key={child.id} src={child.url} alt="" />
+                    ? <video key={child.id} src={child.url} aria-hidden="true" muted playsInline preload="none" />
+                    : <StoreImage key={child.id} src={child.url} alt="" />
                 ))}
               </div>
             )}

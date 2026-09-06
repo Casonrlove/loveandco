@@ -29,9 +29,9 @@ export default function UpdatePasswordForm() {
   return (
     <form onSubmit={submit} className="auth-card">
       <p className="eyebrow">SECURE YOUR ACCOUNT</p>
-      <h2>Choose a new password.</h2>
-      <label>New password<input type="password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></label>
-      <label>Confirm password<input type="password" minLength={8} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" /></label>
+      <h1>Choose a new password.</h1>
+      <label>New password<input type="password" minLength={8} name="password" required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></label>
+      <label>Confirm password<input type="password" minLength={8} name="confirmation" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="studio-primary" disabled={pending} type="submit">{pending ? 'Updating…' : 'Update password'}</button>
     </form>

@@ -1,10 +1,10 @@
 import './globals.css';
+import { getPublicWebsite } from '@/lib/public-data';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import { getPublicTurnaround } from '@/lib/schedule-service';
-import { getSessionProfile } from '@/lib/supabase/auth';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 900;
 
 export const metadata = {
   title: 'Love & Co. Embroidery',
@@ -15,29 +15,24 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#eef4f8',
 };
 
-function buildLabel() {
-  const commit = (process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_GIT_SHA || '').slice(0, 7);
-  const branch = process.env.VERCEL_GIT_COMMIT_REF || process.env.NEXT_PUBLIC_GIT_BRANCH;
-  const environment = process.env.VERCEL_ENV || (commit ? 'local development' : '');
-  return commit
-    ? `${environment || 'deployment'} · ${branch || 'detached'}@${commit}`
-    : 'local development · uncommitted build';
-}
-
 export default async function RootLayout({ children }) {
-  const [turnaround, user] = await Promise.all([
-    getPublicTurnaround(),
-    getSessionProfile(),
-  ]);
+  const [turnaround, website] = await Promise.all([getPublicTurnaround(), getPublicWebsite()]);
 
   return (
     <html lang="en" data-scroll-behavior="smooth">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body>
-        <Header turnaround={turnaround} user={user} />
-        {children}
-        <Footer buildLabel={buildLabel()} />
+        <a className="skip-link" href="#main-content">Skip to content</a>
+        <Header turnaround={turnaround} />
+        {(website.announcement || !website.ordersOpen) && <aside className="shop-announcement" aria-label="Shop announcement">{website.announcement && <p>{website.announcement}</p>}{!website.ordersOpen && <p>{website.pausedMessage}</p>}</aside>}
+        <div id="main-content" tabIndex={-1}>{children}</div>
+        <Footer />
       </body>
     </html>
   );

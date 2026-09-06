@@ -1,24 +1,24 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Shop from '@/components/Shop';
-import { categoryById } from '@/lib/catalog';
+import { CATEGORIES, categoryById } from '@/lib/catalog';
 import { getPublicTurnaround } from '@/lib/schedule-service';
-import { listProducts } from '@/lib/store';
-import { getSessionProfile } from '@/lib/supabase/auth';
+import { getPublicProducts } from '@/lib/public-data';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 900;
+
+export function generateStaticParams() { return CATEGORIES.map(({ id }) => ({ category: id })); }
 
 export default async function ShopCategoryPage({ params }) {
   const { category } = await params;
   if (!categoryById(category)) notFound();
-  const [products, user, turnaround] = await Promise.all([
-    listProducts(),
-    getSessionProfile(),
+  const [products, turnaround] = await Promise.all([
+    getPublicProducts(),
     getPublicTurnaround(),
   ]);
   return (
     <Suspense>
-      <Shop category={category} products={products} user={user} turnaround={turnaround} />
+      <Shop category={category} products={products} turnaround={turnaround} />
     </Suspense>
   );
 }

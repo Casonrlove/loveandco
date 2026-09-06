@@ -13,7 +13,7 @@ export default function ForgotPasswordForm({ configured }) {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    if (!configured) return setError('Connect a Supabase project to enable password recovery.');
+    if (!configured) return setError('Password recovery is temporarily unavailable. Please try again later.');
     setPending(true);
     const { error: authError } = await createClient().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
@@ -26,8 +26,9 @@ export default function ForgotPasswordForm({ configured }) {
   return (
     <form onSubmit={submit} className="auth-card">
       <p className="eyebrow">ACCOUNT RECOVERY</p>
-      <h2>Reset your password.</h2>
-      <label>Email<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
+      <h1>Reset your password.</h1>
+      {!configured && <p role="status">Password recovery is temporarily unavailable. Please try again later.</p>}
+      <label>Email<input name="email" spellCheck={false} type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       <button className="studio-primary" disabled={pending || !configured} type="submit">{pending ? 'Sending…' : 'Send reset link'}</button>

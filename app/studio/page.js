@@ -9,10 +9,15 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Studio · Love & Co. Embroidery' };
 
-export default async function StudioPage() {
+export default async function StudioPage({ searchParams }) {
+  const params = await searchParams;
+  const scalar = (value) => typeof value === 'string' ? value : '';
+  const view = { tab: scalar(params.tab), filter: scalar(params.filter), q: scalar(params.q), order: scalar(params.order) };
+  if (!['board', 'orders', 'products', 'customers', 'inbox', 'website', 'add', 'settings', 'inventory'].includes(view.tab)) view.tab = 'board';
+  if (!['active', 'review', 'unpaid', 'minutes', 'queued', 'started', 'shipped', 'complete', 'cancelled', 'all'].includes(view.filter)) view.filter = 'active';
   const mode = persistenceMode();
   const profile = await getSessionProfile();
-  if (hasSupabaseConfig()) {
+  if (hasSupabaseConfig() || mode !== 'local') {
     if (!profile) redirect('/login?next=/studio');
     if (!isAdminProfile(profile)) redirect('/account');
   }
@@ -31,6 +36,7 @@ export default async function StudioPage() {
       initialSettings={settings}
       instagramConnected={Boolean(instagram.token)}
       mode={mode}
+      initialView={{ tab: view.tab, filter: view.filter, query: view.q, order: view.order }}
     />
   );
 }

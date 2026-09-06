@@ -1,103 +1,74 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import StoreImage from './StoreImage';
+
+import { useModalFocus } from '@/lib/use-modal-focus';
+
+import { useMemo, useState } from 'react';
 import { Dash, Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
-import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ADDON_QTY_OPTIONS, BUNDLE_ADDONS, CART_EVENT, CART_KEY, CATEGORIES, NAPKIN_MIN_QTY, NAPKIN_ORDER_DESIGN_FEE, NAPKIN_QTY_OPTIONS, PACKAGE_ORDER_DESIGN_FEE, PEOPLE_OPTIONS, SHOP_HUB, addonTotal, basePrice, cartTotal, designFee, emptyBundleAddons, findProduct, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, napkinUnitPrice, normalizeBundleAddons, orderDesignFee, productHref, productImages, requiresCustomization, summarizeBundleAddons } from '@/lib/catalog';
 import { lineProductId } from '@/lib/cart';
+import { useCart } from '@/lib/use-cart';
 import { summarizeDesign, validateDesignItem } from '@/lib/design-options';
 import DesignFields, { designDraftFor, emptyDesignDraft } from './DesignFields';
 import FancySelect from './FancySelect';
 import ProductGallery from './ProductGallery';
 import TurnaroundNote from './TurnaroundNote';
 
-const loadCart = () => {
-  try { return JSON.parse(window.localStorage.getItem(CART_KEY)) || []; } catch { return []; }
-};
-
-function categoryFromPath(pathname) {
-  const match = String(pathname || '').match(/^\/shop\/([^/?#]+)/);
-  if (!match || match[1] === 'custom') return undefined;
-  return match[1];
-}
-
-function productFromPath(pathname) {
-  const match = String(pathname || '').match(/^\/shop\/[^/?#]+\/([^/?#]+)/);
-  return match?.[1];
-}
-
-export default function Shop({ category, productKey, products, user, turnaround }) {
-  const router = useRouter();
+export default function Shop(props) {
   const pathname = usePathname();
-  const params = useParams();
+  return <ShopContent key={pathname} {...props} />;
+}
+
+function ShopContent({ category, productKey, products, turnaround }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [cart, setCart] = useState(null);
-  const [isBagOpen, setIsBagOpen] = useState(false);
+  const [cart, setCart] = useCart();
+  const [bagRequested, setBagRequested] = useState(false);
+  const isBagOpen = bagRequested || searchParams.get('bag') === 'open';
+  const setIsBagOpen = (open) => {
+    setBagRequested(open);
+    if (!open && searchParams.has('bag')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('bag');
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  };
   const [sort, setSort] = useState('featured');
   const [priceFilter, setPriceFilter] = useState('all');
-  const [openedCategory, setOpenedCategory] = useState(undefined);
-  const [openedProduct, setOpenedProduct] = useState(undefined);
-  const [designDraft, setDesignDraft] = useState(emptyDesignDraft);
+  const [designDraft, setDesignDraft] = useState(() => designDraftFor(findProduct(products, productKey)));
   const [designError, setDesignError] = useState('');
   const [addingProduct, setAddingProduct] = useState(null);
+  const itemDialog = useModalFocus(Boolean(addingProduct), () => setAddingProduct(null));
+  const bagDialog = useModalFocus(isBagOpen, () => setIsBagOpen(false));
   const [peopleCount, setPeopleCount] = useState(1);
   const [napkinCount, setNapkinCount] = useState(NAPKIN_MIN_QTY);
 
-  useEffect(() => {
-    setOpenedCategory(undefined);
-    setOpenedProduct(undefined);
-    setDesignDraft(emptyDesignDraft);
-    setDesignError('');
-    setAddingProduct(null);
-    setPeopleCount(1);
-    setNapkinCount(NAPKIN_MIN_QTY);
-  }, [pathname]);
-
-  const categoryId = openedCategory !== undefined
-    ? openedCategory
-    : (categoryFromPath(pathname) || params?.category || category);
+  const categoryId = category;
   const activeCategory = CATEGORIES.find((item) => item.id === categoryId);
-  const activeProduct = openedProduct !== undefined
-    ? openedProduct
-    : findProduct(products, productFromPath(pathname) || params?.product || productKey);
-
-  useEffect(() => {
-    setDesignDraft(designDraftFor(activeProduct));
-    setDesignError('');
-    setPeopleCount(1);
-    setNapkinCount(NAPKIN_MIN_QTY);
-  }, [activeProduct?.id]);
+  const activeProduct = findProduct(products, productKey);
 
   const scrollTop = () => {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const openCategory = (id) => {
-    setOpenedCategory(id);
-    setOpenedProduct(null);
     scrollTop();
     router.push(id ? `/shop/${id}` : '/shop');
   };
 
   const openItem = (product) => {
-    setOpenedProduct(product);
     scrollTop();
     router.push(productHref(product));
   };
-  const bag = cart || [];
+  const bag = cart;
   const itemCount = bag.reduce((total, item) => total + item.quantity, 0);
   const hasCustomItem = bag.some((item) => item.isCustom);
   const total = useMemo(() => cartTotal(bag), [bag]);
   const packageFee = orderDesignFee(bag);
 
-  useEffect(() => { setCart(loadCart()); }, []);
-  useEffect(() => {
-    if (!cart) return;
-    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    window.dispatchEvent(new Event(CART_EVENT));
-  }, [cart]);
-  useEffect(() => { if (searchParams.get('bag') === 'open') setIsBagOpen(true); }, [searchParams]);
 
   const addToCart = (product, extras = emptyDesignDraft) => {
     const extrasWithRequired = requiresCustomization(product)
@@ -286,6 +257,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
           <Link
             href={activeCategory ? `/shop/${activeCategory.id}` : '/shop'}
             onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault();
               openCategory(activeCategory?.id || null);
             }}
@@ -327,11 +299,12 @@ export default function Shop({ category, productKey, products, user, turnaround 
                   href={item.shopPath}
                   key={item.id}
                   onClick={(event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                     event.preventDefault();
                     openCategory(item.id);
                   }}
                 >
-                  <img src={item.image} alt={item.name} />
+                  <StoreImage src={item.image} alt={item.name} />
                   <div>
                     {item.preorder && <p className="eyebrow">PREORDER</p>}
                     <h2>{item.name}</h2>
@@ -344,7 +317,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
       ) : (
         <>
           <section className="catalog-hero">
-            <Link href="/shop" onClick={(event) => { event.preventDefault(); openCategory(null); }}>← All collections</Link>
+            <Link href="/shop" onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openCategory(null); }}>← All collections</Link>
             <p className="eyebrow">THE LOVE & CO. SHOP</p>
             <h1>{activeCategory.name}</h1>
             <p>{activeCategory.detail}</p>
@@ -387,7 +360,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
                   name={product.name}
                   onActivate={() => openItem(product)}
                 />
-                <Link href={productHref(product)} onClick={(event) => { event.preventDefault(); openItem(product); }}>
+                <Link href={productHref(product)} onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openItem(product); }}>
                   <div>
                     <p className="eyebrow">CUSTOM EMBROIDERY</p>
                     <h2>{product.name}</h2>
@@ -406,7 +379,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
       )}
 
       {addingProduct && (
-        <div className="checkout-overlay item-overlay" role="dialog" aria-modal="true" aria-labelledby="add-item-title">
+        <div ref={itemDialog} tabIndex={-1} className="checkout-overlay item-overlay" role="dialog" aria-modal="true" aria-labelledby="add-item-title">
           <section className="checkout-card item-card add-item-card">
             <button className="drawer-close" type="button" onClick={() => setAddingProduct(null)} aria-label="Close"><X /></button>
             <p className="eyebrow">ADD TO BAG</p>
@@ -426,7 +399,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
       )}
 
       {isBagOpen && (
-        <aside className="cart-drawer" aria-label="Shopping bag">
+        <aside ref={bagDialog} tabIndex={-1} role="dialog" aria-modal="true" className="cart-drawer" aria-label="Shopping bag">
           <button className="drawer-close" type="button" onClick={() => setIsBagOpen(false)} aria-label="Close bag"><X /></button>
           <p className="eyebrow">YOUR BAG</p>
           <h2>Good things are coming.</h2>

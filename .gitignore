@@ -13,6 +13,8 @@
 /.next
 /out
 /.data
+/public/media
+/lib/generated-images.json
 /supabase/.temp
 /supabase/.branches
 

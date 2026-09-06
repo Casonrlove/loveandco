@@ -1,56 +1,28 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import StoreImage from './StoreImage';
+
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Dash, Plus } from 'react-bootstrap-icons';
 import { CART_EVENT, NAPKIN_MIN_QTY, addonTotal, basePrice, cartTotal, designFee, isPerPersonPackage, isTieredNapkins, lineTotal, orderDesignFee, summarizeBundleAddons } from '@/lib/catalog';
-import { loadCart, persistCart } from '@/lib/cart';
+import { useCart } from '@/lib/use-cart';
 import { hasAddressInput, validateAddress } from '@/lib/address';
 import { summarizeDesign, validateDesignItem } from '@/lib/design-options';
 import AddressFields from './AddressFields';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
-import { createClient } from '@/lib/supabase/client';
 
-export default function Checkout({ user, turnaround }) {
-  const router = useRouter();
-  const [cart, setCart] = useState([]);
-  const [ready, setReady] = useState(false);
+export default function Checkout({ user, turnaround, website }) {
+  const [cart, setCart, ready] = useCart();
+  const submitting = useRef(false);
+  const retry = useRef(null);
+  const [delivery, setDelivery] = useState('shipping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [venmo, setVenmo] = useState(user?.venmo_username || '');
   const [venmoVerified, setVenmoVerified] = useState(false);
-
-  useEffect(() => {
-    setCart(loadCart());
-    setReady(true);
-  }, []);
-  useEffect(() => {
-    if (user?.venmo_username) {
-      setVenmo((current) => current.trim() ? current : user.venmo_username);
-      return;
-    }
-    if (!user) return undefined;
-    let cancelled = false;
-    (async () => {
-      try {
-        const supabase = createClient();
-        const { data } = await supabase.from('profiles').select('venmo_username').eq('id', user.id).maybeSingle();
-        if (!cancelled && data?.venmo_username) {
-          setVenmo((current) => current.trim() ? current : data.venmo_username);
-        }
-      } catch {
-        /* keep whatever is already in the field */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
-  useEffect(() => {
-    if (!ready) return;
-    persistCart(cart);
-  }, [cart, ready]);
 
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const itemsTotal = useMemo(() => cart.reduce((sum, item) => (
@@ -67,14 +39,14 @@ export default function Checkout({ user, turnaround }) {
 
   const submitOrder = async (event) => {
     event.preventDefault();
-    if (!cart.length) return;
+    if (!cart.length || submitting.current) return;
     const form = Object.fromEntries(new FormData(event.currentTarget).entries());
     const designError = cart.map(validateDesignItem).find(Boolean);
     if (designError) {
       setSubmitError(designError);
       return;
     }
-    const addressError = validateAddress(form);
+    const addressError = delivery === 'shipping' ? validateAddress(form) : null;
     if (addressError) {
       setSubmitError(addressError);
       return;
@@ -83,28 +55,38 @@ export default function Checkout({ user, turnaround }) {
       setSubmitError('Confirm your Venmo username is correct.');
       return;
     }
+    submitting.current = true;
     setIsSubmitting(true);
     setSubmitError('');
     try {
+      const payload = JSON.stringify({ ...form, delivery_method: delivery, items: cart });
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+      const fingerprint = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+      let previous = retry.current;
+      try { previous = JSON.parse(sessionStorage.getItem('loveandco-checkout-retry')) || previous; } catch {}
+      const key = previous?.fingerprint === fingerprint ? previous.key : crypto.randomUUID();
+      retry.current = { fingerprint, key };
+      try { sessionStorage.setItem('loveandco-checkout-retry', JSON.stringify(retry.current)); } catch {}
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, items: cart }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        body: payload,
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'Your order could not be sent.');
+      retry.current = null;
+      try { sessionStorage.removeItem('loveandco-checkout-retry'); } catch {}
       setIsSubmitted(true);
       setCart([]);
-      persistCart([]);
-      window.dispatchEvent(new Event(CART_EVENT));
     } catch (error) {
       setSubmitError(error.message || 'Your order could not be sent. Please try again or contact us directly.');
     } finally {
+      submitting.current = false;
       setIsSubmitting(false);
     }
   };
 
-  if (!ready) return <main className="checkout-page" />;
+  if (!ready) return <main className="checkout-page"><p role="status">Loading your bag…</p></main>;
 
   if (isSubmitted) {
     return (
@@ -149,7 +131,7 @@ export default function Checkout({ user, turnaround }) {
             const fee = designFee(item);
             return (
               <article className="checkout-line" key={item.id}>
-                <img src={item.image} alt="" />
+                <StoreImage src={item.image} alt="" />
                 <div className="checkout-line-copy">
                   <div className="checkout-line-head">
                     <div>
@@ -233,7 +215,8 @@ export default function Checkout({ user, turnaround }) {
 
           <div className="checkout-summary-card">
             <p className="eyebrow">SHIP TO</p>
-            <AddressFields defaultAddress={user} />
+            <label>Delivery method<select name="delivery_method" value={delivery} onChange={(e) => setDelivery(e.target.value)}><option value="shipping">Shipping</option>{website?.info?.pickupEnabled && <option value="pickup">Local pickup</option>}</select></label>
+            {delivery === 'shipping' ? <AddressFields defaultAddress={user} /> : <p>{website?.info?.pickupInstructions}</p>}
             {user ? (
               <label className="save-address">
                 <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
@@ -246,7 +229,7 @@ export default function Checkout({ user, turnaround }) {
             {!user && <p className="helper">Want to track this later? <Link href="/login?next=/account">Create an account</Link> with the same email.</p>}
             {submitError && <p className="form-error" role="alert">{submitError}</p>}
             <button className="studio-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending order…' : 'Place order'}</button>
-            <button className="continue-shopping" type="button" onClick={() => router.push('/shop')}>Back to shop</button>
+            <Link className="continue-shopping" href="/shop">Back to shop</Link>
           </div>
         </aside>
       </form>

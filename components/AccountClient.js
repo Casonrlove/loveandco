@@ -1,5 +1,6 @@
 'use client';
 
+import { trackingUrl } from '@/lib/operations-utils';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -120,6 +121,7 @@ export default function AccountClient({ profile, orders }) {
                   <div>
                     <strong>{(order.items || []).map((item) => item.name).join(', ')}</strong>
                     <p>{statusCopy(order)}</p>
+                    {order.delivery_method === 'pickup' ? <p>Local pickup · {order.pickup_instructions || 'The shop will arrange pickup with you.'}</p> : trackingUrl(order.carrier, order.tracking_number) && <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">Track shipment</a>}
                     <small>${Number(order.subtotal || 0).toFixed(2)}</small>
                   </div>
                   <div className="completion">

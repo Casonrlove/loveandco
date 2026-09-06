@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { formatZip, normalizeState, US_STATES } from '@/lib/address';
 
 export default function AddressFields({ defaultAddress, required = true }) {
+  const listId = useId();
   const saved = defaultAddress || {};
   const [address, setAddress] = useState({
     address_line: saved.address_line || '',
@@ -61,6 +62,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
   const onStreetChange = (value) => {
     setField('address_line', value);
     clearTimeout(timer.current);
+    const ticket = ++request.current;
     if (value.trim().length < 3 || !/[A-Za-z]/.test(value)) {
       setSuggestions([]);
       setOpen(false);
@@ -68,7 +70,6 @@ export default function AddressFields({ defaultAddress, required = true }) {
       return;
     }
     setStatus('Looking up addresses…');
-    const ticket = ++request.current;
     timer.current = setTimeout(async () => {
       try {
         const response = await fetch(`/api/address/suggest?q=${encodeURIComponent(value.trim())}&session=${encodeURIComponent(session.current)}`);
@@ -77,7 +78,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
         if (result.error === 'not_configured') {
           setSuggestions([]);
           setOpen(false);
-          setStatus('Address lookup needs a Google Places key.');
+          setStatus('Enter your full address below.');
           return;
         }
         const next = result.suggestions || [];
@@ -89,7 +90,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
         if (ticket !== request.current) return;
         setSuggestions([]);
         setOpen(false);
-        setStatus('Could not look up addresses.');
+        setStatus('Address lookup is unavailable. Enter your address below.');
       }
     }, 280);
   };
@@ -143,6 +144,11 @@ export default function AddressFields({ defaultAddress, required = true }) {
         <label>Street address
           <input
             name="address_line"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={open && suggestions.length > 0}
+            aria-controls={open ? listId : undefined}
+            aria-activedescendant={open ? `${listId}-${active}` : undefined}
             required={required}
             autoComplete="off"
             spellCheck="false"
@@ -154,10 +160,12 @@ export default function AddressFields({ defaultAddress, required = true }) {
           />
         </label>
         {open && suggestions.length > 0 && (
-          <ul className="address-suggest-menu" role="listbox">
+          <ul id={listId} className="address-suggest-menu" role="listbox" aria-label="Suggested addresses">
             {suggestions.map((item, index) => (
-              <li key={item.id}>
+              <li key={item.id} role="presentation">
                 <button
+                  id={`${listId}-${index}`}
+                  tabIndex={-1}
                   type="button"
                   role="option"
                   aria-selected={index === active}
@@ -173,7 +181,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
             ))}
           </ul>
         )}
-        {status && <p className="helper">{status}</p>}
+        {status && <p className="helper" role="status">{status}</p>}
       </div>
       <label>Apt / unit
         <input

@@ -3,23 +3,23 @@ import { notFound } from 'next/navigation';
 import Shop from '@/components/Shop';
 import { categoryById, findProduct } from '@/lib/catalog';
 import { getPublicTurnaround } from '@/lib/schedule-service';
-import { listProducts } from '@/lib/store';
-import { getSessionProfile } from '@/lib/supabase/auth';
+import { getPublicProducts } from '@/lib/public-data';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 900;
+
+export async function generateStaticParams() { return []; }
 
 export default async function ShopProductPage({ params }) {
   const { category, product } = await params;
   if (!categoryById(category)) notFound();
-  const [products, user, turnaround] = await Promise.all([
-    listProducts(),
-    getSessionProfile(),
+  const [products, turnaround] = await Promise.all([
+    getPublicProducts(),
     getPublicTurnaround(),
   ]);
   if (!findProduct(products, product)) notFound();
   return (
     <Suspense>
-      <Shop category={category} productKey={product} products={products} user={user} turnaround={turnaround} />
+      <Shop category={category} productKey={product} products={products} turnaround={turnaround} />
     </Suspense>
   );
 }

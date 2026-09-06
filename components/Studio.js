@@ -1,31 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import StoreImage from './StoreImage';
+
+import { useEffect, useMemo, useState } from 'react';
 import { Calendar3, Check2, Clock, Plus, Search, Trash3 } from 'react-bootstrap-icons';
 import { CATEGORIES, PRODUCT_IMAGES, slugify } from '@/lib/catalog';
-import { proofRows } from '@/lib/design-options';
+import StudioPhotos from './StudioPhotos';
+import StudioInventory from './StudioInventory';
+import StudioOrderEditor from './StudioOrderEditor';
+import { exportOrders, Pagination, StudioCustomers, StudioInbox, StudioWebsite } from './StudioOperations';
 import { createSchedule, formatDate, toScheduleOrder, turnaround } from '@/lib/scheduler';
 import { orderMinutes, studioInsights } from '@/lib/studio-insights';
 import FancySelect from './FancySelect';
 import StudioCalendar from './StudioCalendar';
-
-function DesignProof({ item }) {
-  const rows = proofRows(item.custom_details);
-  if (rows.length) {
-    return (
-      <dl className="design-proof">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd className={label.startsWith('Name confirmed') || label.startsWith('Confirmed') ? 'verified' : undefined}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    );
-  }
-  if (item.personalization) return <p>{item.personalization}</p>;
-  return null;
-}
 
 const emptyManual = { name: '', item: '', email: '', price: '', design_minutes: 0, stitch_minutes: 30, priority: 'standard' };
 const emptyProduct = {
@@ -58,14 +45,24 @@ function matchesQuery(order, query) {
   return hay.includes(query.toLowerCase());
 }
 
-export default function Studio({ initialOrders, initialProducts, initialSettings, instagramConnected = false, mode }) {
+export default function Studio({ initialOrders, initialProducts, initialSettings, instagramConnected = false, mode, initialView = {} }) {
   const [orders, setOrders] = useState(initialOrders);
   const [products, setProducts] = useState(initialProducts);
   const [settings, setSettings] = useState(initialSettings);
-  const [tab, setTab] = useState('board');
-  const [filter, setFilter] = useState('active');
-  const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState(initialOrders[0]?.id || '');
+  const [tab, rawSetTab] = useState(initialView.tab || 'board');
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [page, setPage] = useState(0);
+  const leaveOrder = () => !orderDirty || window.confirm('Discard unsaved order changes?');
+  const setTab = (value) => { if (value === tab) return; if (leaveOrder()) { rawSetTab(value); setOrderDirty(false); } };
+  const [filter, setFilter] = useState(initialView.filter || 'active');
+  const [query, setQuery] = useState(initialView.query || '');
+  const [selectedId, rawSelectId] = useState(initialView.order || initialOrders[0]?.id || '');
+  const setSelectedId = (id) => { if (id === selectedId) return; if (leaveOrder()) { rawSelectId(id); setOrderDirty(false); } };
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries({ tab, filter, q: query, order: selectedId })) { if (value) url.searchParams.set(key, value); else url.searchParams.delete(key); }
+    window.history.replaceState(null, '', url);
+  }, [tab, filter, query, selectedId]);
   const [manual, setManual] = useState(emptyManual);
   const [productDraft, setProductDraft] = useState(emptyProduct);
   const [busy, setBusy] = useState(false);
@@ -91,18 +88,20 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
     return order.fulfillment_status === filter;
   });
 
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(visibleOrders.length / 25) - 1));
+  const displayedOrders = visibleOrders.slice(currentPage * 25, currentPage * 25 + 25);
+
   const persistSettings = async (patch) => {
-    let next;
-    setSettings((current) => {
-      next = typeof patch === 'function' ? patch(current) : { ...current, ...patch };
-      return next;
-    });
-    const response = await fetch('/api/studio/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(next),
-    });
-    if (!response.ok) setMessage('Could not save availability.');
+    const next = typeof patch === 'function' ? patch(settings) : { ...settings, ...patch };
+    setSettings(next);
+    setBusy(true);
+    try {
+      const response = await fetch('/api/studio/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not save availability.');
+      setSettings(result.settings); setMessage('Availability saved.');
+    } catch (error) { setSettings(settings); setMessage(error.message); }
+    finally { setBusy(false); }
   };
 
   const toggleDayOff = (date) => persistSettings((current) => ({
@@ -126,6 +125,9 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Update failed.');
       setOrders((current) => current.map((order) => order.id === id ? result.order : order));
+      if (result.warning) setMessage(result.warning);
+      else if (result.notification?.status === 'failed') setMessage('Order saved. Customer email failed; contact the customer directly.');
+      else if (result.notification?.status === 'disabled') setMessage('Order saved. Email delivery is not configured.');
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -164,7 +166,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       const response = await fetch('/api/studio/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...productDraft, slug: slugify(productDraft.name) }),
+        body: JSON.stringify({ ...productDraft, slug: productDraft.slug || slugify(productDraft.name) }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not save product.');
@@ -173,6 +175,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         return [...others, result.product].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       });
       setProductDraft(emptyProduct);
+      setMessage('Product saved.');
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -195,6 +198,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   };
 
   const removeProduct = async (id) => {
+    if (!window.confirm('Delete this product from the catalog? This cannot be undone.')) return;
     const response = await fetch(`/api/studio/products?id=${id}`, { method: 'DELETE' });
     if (!response.ok) {
       setMessage('Could not delete product.');
@@ -204,8 +208,8 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   };
 
   const openOrder = (id) => {
-    setSelectedId(id);
-    setTab('orders');
+    if (!leaveOrder()) return;
+    rawSelectId(id); rawSetTab('orders'); setOrderDirty(false);
     setCalendarOpen(false);
   };
 
@@ -214,7 +218,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       <section className="studio-hero">
         <div>
           <p className="eyebrow">PRIVATE STUDIO</p>
-          <h1>Command center</h1>
+          <h1>The studio workbench</h1>
           <p>{currentTurnaround.label}</p>
           {mode === 'local' && <p className="helper">Local preview store — connect Supabase for the live database.</p>}
         </div>
@@ -228,7 +232,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         </div>
       </section>
 
-      <section className="insight-grid">
+      {tab === 'board' && <><section className="insight-grid">
         <button type="button" onClick={() => { setFilter('review'); setTab('orders'); }}><span>Needs review</span><strong>{insights.review}</strong></button>
         <button type="button" onClick={() => { setFilter('unpaid'); setTab('orders'); }}><span>Waiting on Venmo</span><strong>{insights.unpaid}</strong><small>${insights.pendingTotal.toFixed(0)}</small></button>
         <button type="button" onClick={() => { setFilter('queued'); setTab('board'); }}><span>In production</span><strong>{insights.production}</strong></button>
@@ -252,7 +256,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                 <strong>{formatDate(session.date)}</strong>
                 <small>{used}m booked · {session.minutesRemaining}m open</small>
                 {session.jobs.slice(0, 2).map((job, index) => <p key={`${job.orderId}-${index}`}>{job.customer.split(' ')[0]} · {job.phase}</p>)}
-                <button type="button" onClick={() => toggleDayOff(session.date)}>Take off</button>
+                <button type="button" disabled={busy} onClick={() => toggleDayOff(session.date)}>Take off</button>
               </article>
             );
           })}
@@ -260,15 +264,16 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             <article className="is-off" key={date}>
               <strong>{formatDate(date)}</strong>
               <small>Off</small>
-              <button type="button" onClick={() => toggleDayOff(date)}>Restore</button>
+              <button type="button" disabled={busy} onClick={() => toggleDayOff(date)}>Restore</button>
             </article>
           ))}
         </div>
       </section>
 
+      </>}
       <div className="studio-tabs">
-        {[['board', 'Board'], ['orders', 'Orders'], ['products', 'Products'], ['add', 'Add job']].map(([id, label]) => (
-          <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
+        {[['board', 'Work queue'], ['orders', 'Orders'], ['products', 'Products'], ['customers', 'Customers'], ['inbox', 'Inquiries'], ['website', 'Website'], ['inventory', 'Inventory'], ['add', 'Add order'], ['settings', 'Availability & Instagram']].map(([id, label]) => (
+          <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
         ))}
         <button type="button" className="active-soft" onClick={() => setCalendarOpen(true)}>Calendar</button>
       </div>
@@ -276,15 +281,16 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
 
       {tab === 'board' && (
         <section className="studio-panel queue-panel">
+          <div className="studio-toolbar"><label>Queue filter<select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(0); }}>{[["active", "Active"], ["review", "Needs review"], ["unpaid", "Awaiting payment"], ["queued", "Queued"], ["started", "Started"], ["shipped", "Shipped"], ["complete", "Complete"], ["cancelled", "Cancelled"], ["all", "All orders"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="soft-button" onClick={() => exportOrders(visibleOrders)}>Export this view</button></div>
           <div className="queue-title">
             <div><p className="eyebrow">BOARD</p><h2>What’s on your plate</h2></div>
-            <label className="studio-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, item" /></label>
+            <label className="studio-search"><Search /><input aria-label="Search orders" name="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, item" /></label>
           </div>
           {visibleOrders.length === 0 ? (
             <div className="empty-queue"><Clock size={28} /><p>Nothing in this view. New shop orders land here automatically.</p></div>
           ) : (
             <div className="queue-list">
-              {visibleOrders.map((order) => {
+              {displayedOrders.map((order) => {
                 const result = schedule.results[order.id];
                 const minutes = orderMinutes(order);
                 return (
@@ -309,7 +315,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                       {order.payment_status === 'unpaid' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { payment_status: 'requested' })}>Venmo sent</button>}
                       {order.payment_status !== 'paid' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { payment_status: 'paid', fulfillment_status: 'queued' })}>Paid</button>}
                       {order.payment_status === 'paid' && order.fulfillment_status === 'queued' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { fulfillment_status: 'started' })}>Start</button>}
-                      {['queued', 'started'].includes(order.fulfillment_status) && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { fulfillment_status: 'shipped' })}>Ship</button>}
+                      {['queued', 'started'].includes(order.fulfillment_status) && <button type="button" onClick={() => openOrder(order.id)}>Shipping details</button>}
                       <button type="button" onClick={() => openOrder(order.id)}>Open</button>
                     </div>
                   </article>
@@ -317,6 +323,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
               })}
             </div>
           )}
+          <Pagination page={currentPage} setPage={setPage} count={visibleOrders.length} />
         </section>
       )}
 
@@ -326,8 +333,8 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             <div className="queue-title">
               <div><p className="eyebrow">ORDERS</p><h2>{visibleOrders.length}</h2></div>
             </div>
-            <label className="studio-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" /></label>
-            <FancySelect
+            <label className="studio-search"><Search /><input aria-label="Search orders" name="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" /></label>
+            <label>Order filter<FancySelect
               value={filter}
               onChange={setFilter}
               options={[
@@ -339,11 +346,12 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                 { value: 'started', label: 'Started' },
                 { value: 'shipped', label: 'Shipped' },
                 { value: 'complete', label: 'Complete' },
+                { value: 'cancelled', label: 'Cancelled' },
                 { value: 'all', label: 'All' },
               ]}
-            />
+            /></label>
             <div className="order-index">
-              {visibleOrders.map((order) => (
+              {displayedOrders.map((order) => (
                 <button type="button" key={order.id} className={order.id === selectedId ? 'active' : ''} onClick={() => setSelectedId(order.id)}>
                   <strong>{order.name}</strong>
                   <span>{statusLabel(order)} · {order.payment_status} · ${Number(order.subtotal || 0).toFixed(0)}</span>
@@ -351,79 +359,23 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
               ))}
               {visibleOrders.length === 0 && <p className="empty-copy">No orders in this filter.</p>}
             </div>
+            <Pagination page={currentPage} setPage={setPage} count={visibleOrders.length} />
           </aside>
-          <section className="studio-panel">
-            {!selected ? <p className="empty-copy">Select an order to review it.</p> : (
-              <>
-                <div className="queue-title">
-                  <div>
-                    <p className="eyebrow">{selected.email}</p>
-                    <h2>{selected.name}</h2>
-                  </div>
-                  <span>${Number(selected.subtotal || 0).toFixed(2)}</span>
-                </div>
-                <p className="helper">
-                  Venmo {selected.venmo_username || '—'} · {selected.phone || 'no phone'} · {selected.priority}
-                  {schedule.results[selected.id]?.completionDate ? ` · finish ${formatDate(schedule.results[selected.id].completionDate)}` : ''}
-                </p>
-                {selected.customer_notes && <p>{selected.customer_notes}</p>}
-                {schedule.results[selected.id] && (
-                  <p className="helper">Split across {(schedule.results[selected.id].design.length + schedule.results[selected.id].stitch.length)} session blocks · {schedule.results[selected.id].totalMinutes}m</p>
-                )}
-                <div className="item-editor">
-                  {(selected.items || []).map((item, index) => (
-                    <article key={item.id || index}>
-                      <strong>{item.quantity} × {item.name}</strong>
-                      <DesignProof item={item} />
-                      <div className="form-row">
-                        <label>Design min
-                          <input type="number" min="0" value={item.design_minutes} onChange={(event) => {
-                            const items = selected.items.map((row) => row.id === item.id ? { ...row, design_minutes: event.target.value } : row);
-                            setOrders((current) => current.map((order) => order.id === selected.id ? { ...order, items } : order));
-                          }} />
-                        </label>
-                        <label>Stitch min
-                          <input type="number" min="0" value={item.stitch_minutes} onChange={(event) => {
-                            const items = selected.items.map((row) => row.id === item.id ? { ...row, stitch_minutes: event.target.value } : row);
-                            setOrders((current) => current.map((order) => order.id === selected.id ? { ...order, items } : order));
-                          }} />
-                        </label>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                <button className="studio-primary" type="button" disabled={busy} onClick={() => patchOrder(selected.id, { items: selected.items })}>Save minutes</button>
-                <div className="order-actions wrap">
-                  {selected.payment_status === 'unpaid' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { payment_status: 'requested' })}>Venmo requested</button>}
-                  {selected.payment_status !== 'paid' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { payment_status: 'paid', fulfillment_status: 'queued' })}>Mark paid</button>}
-                  {selected.payment_status === 'paid' && selected.fulfillment_status === 'queued' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { fulfillment_status: 'started' })}>Start</button>}
-                  {['queued', 'started'].includes(selected.fulfillment_status) && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { fulfillment_status: 'shipped' })}>Ship</button>}
-                  {selected.fulfillment_status !== 'complete' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { fulfillment_status: 'complete' })}>Complete</button>}
-                  {selected.priority !== 'rush' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { priority: 'rush' })}>Make rush</button>}
-                  {selected.priority === 'rush' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { priority: 'standard' })}>Clear rush</button>}
-                  {selected.fulfillment_status !== 'cancelled' && <button type="button" disabled={busy} onClick={() => patchOrder(selected.id, { fulfillment_status: 'cancelled' })}>Cancel</button>}
-                </div>
-                <label>Tracking number
-                  <input value={selected.tracking_number || ''} onChange={(event) => setOrders((current) => current.map((order) => order.id === selected.id ? { ...order, tracking_number: event.target.value } : order))} placeholder="Optional carrier tracking" />
-                </label>
-                <button type="button" className="studio-primary" disabled={busy} onClick={() => patchOrder(selected.id, { tracking_number: selected.tracking_number, fulfillment_status: selected.tracking_number && selected.fulfillment_status === 'started' ? 'shipped' : selected.fulfillment_status })}>Save tracking</button>
-              </>
-            )}
-          </section>
+          {selected ? <StudioOrderEditor key={selected.id} order={selected} onDirty={setOrderDirty} onSaved={(saved) => setOrders((current) => current.map((order) => order.id === saved.id ? saved : order))} /> : <section className="studio-panel"><p>Select an order to review it.</p></section>}
         </section>
       )}
 
-      {tab === 'add' && (
+      {(tab === 'add' || tab === 'settings') && (
         <section className="studio-grid">
-          <aside className="studio-panel settings-panel">
+          {tab === 'settings' && <aside className="studio-panel settings-panel">
             <div className="panel-heading"><Calendar3 /><div><p className="eyebrow">AVAILABILITY</p><h2>Your stitching rhythm</h2></div></div>
             <label>Minutes per embroidery night
-              <input type="number" min="30" step="15" value={settings.minutesPerSession} onChange={(event) => persistSettings({ minutesPerSession: event.target.value })} />
+              <input type="number" min="30" step="15" key={settings.minutesPerSession} defaultValue={settings.minutesPerSession} onBlur={(event) => { if (Number(event.target.value) !== Number(settings.minutesPerSession)) persistSettings({ minutesPerSession: Number(event.target.value) }); }} />
             </label>
             <p className="helper">Work nights and days off are faster from the calendar. These pills set the weekly default.</p>
             <div className="day-pills">
               {workDays.map(([label, value]) => (
-                <button type="button" className={settings.workDays.includes(value) ? 'active' : ''} key={value} onClick={() => persistSettings({
+                <button type="button" disabled={busy} className={settings.workDays.includes(value) ? 'active' : ''} key={value} onClick={() => persistSettings({
                   workDays: settings.workDays.includes(value)
                     ? settings.workDays.filter((day) => day !== value)
                     : [...settings.workDays, value],
@@ -465,12 +417,14 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             >
               Save Instagram token
             </button>
-          </aside>
-          <section className="studio-panel add-order-panel">
+          </aside>}
+          {tab === 'add' && <section className="studio-panel add-order-panel">
             <div className="panel-heading"><Plus /><div><p className="eyebrow">WALK-IN / INSTAGRAM</p><h2>Add to production</h2></div></div>
             <form onSubmit={addManualOrder} className="order-form">
               <label>Customer<input required value={manual.name} onChange={(event) => setManual({ ...manual, name: event.target.value })} /></label>
               <label>Email<input type="email" required value={manual.email} onChange={(event) => setManual({ ...manual, email: event.target.value })} /></label>
+              <label>Phone<input type="tel" value={manual.phone || ''} onChange={(event) => setManual({ ...manual, phone: event.target.value })} /></label>
+              <label>Customer notes<textarea value={manual.customer_notes || ''} onChange={(event) => setManual({ ...manual, customer_notes: event.target.value })} /></label>
               <label>Item / project<input required value={manual.item} onChange={(event) => setManual({ ...manual, item: event.target.value })} /></label>
               <div className="form-row">
                 <label>Order total ($)<input type="number" min="0" step="0.01" value={manual.price} onChange={(event) => setManual({ ...manual, price: event.target.value })} /></label>
@@ -487,16 +441,16 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                   ]}
                 />
               </label>
-              <button className="studio-primary" type="submit" disabled={busy}>Add to schedule</button>
+              <button className="studio-primary" type="submit" disabled={busy}>Create unpaid order</button>
             </form>
-          </section>
+          </section>}
         </section>
       )}
 
       {tab === 'products' && (
         <section className="studio-grid">
           <section className="studio-panel">
-            <div className="panel-heading"><Plus /><div><p className="eyebrow">CATALOG</p><h2>Add a shop piece</h2></div></div>
+            <div className="panel-heading"><Plus /><div><p className="eyebrow">CATALOG</p><h2>{productDraft.id ? 'Edit shop piece' : 'Add a shop piece'}</h2></div></div>
             <form className="order-form" onSubmit={saveProduct}>
               <label>Name<input required value={productDraft.name} onChange={(event) => setProductDraft({ ...productDraft, name: event.target.value })} /></label>
               <label>Details<input value={productDraft.detail} onChange={(event) => setProductDraft({ ...productDraft, detail: event.target.value })} /></label>
@@ -523,7 +477,11 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                   options={PRODUCT_IMAGES.map((image) => ({ value: image, label: image.replace('/images/', '') }))}
                 />
               </label>
-              <button className="studio-primary" type="submit" disabled={busy}>Add to shop</button>
+              <label>Display order<input type="number" min="0" max="100000" value={productDraft.sort_order || 0} onChange={(event) => setProductDraft({ ...productDraft, sort_order: event.target.value })} /></label>
+              <StoreImage className="studio-product-preview" src={productDraft.image_path} alt="Product photo preview" />
+              <StudioPhotos photos={productDraft.photo_paths || []} onChange={(photos) => setProductDraft({ ...productDraft, photo_paths: photos, image_path: photos[0] || '/images/Logo.png' })} />
+              <button className="studio-primary" type="submit" disabled={busy}>{productDraft.id ? 'Save product' : 'Add to shop'}</button>
+              {productDraft.id && <button type="button" className="soft-button" onClick={() => setProductDraft(emptyProduct)}>Cancel editing</button>}
             </form>
           </section>
           <section className="studio-panel">
@@ -531,11 +489,13 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             <div className="product-admin-list">
               {products.map((product) => (
                 <article key={product.id}>
-                  <img src={product.image} alt="" />
+                  <StoreImage src={product.image} alt="" />
                   <div>
                     <strong>{product.name}</strong>
                     <p>{CATEGORIES.find((category) => category.id === product.category)?.name} · ${itemTotal(product).toFixed(2)} · {product.design_minutes}m / {product.stitch_minutes}m · {product.active ? 'live' : 'hidden'}</p>
                     <div className="order-actions">
+                      <button type="button" onClick={() => { setProductDraft(product); window.scrollTo({ top: 0, behavior: 'instant' }); }}>Edit</button>
+                      <button type="button" onClick={() => setProductDraft({ ...product, id: undefined, name: `${product.name} copy`, slug: '', active: false })}>Duplicate draft</button>
                       <button type="button" onClick={() => updateProduct(product, { active: !product.active })}>{product.active ? 'Hide' : 'Show'}</button>
                       <button className="icon-button" type="button" onClick={() => removeProduct(product.id)} aria-label={`Delete ${product.name}`}><Trash3 /></button>
                     </div>
@@ -548,6 +508,10 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         </section>
       )}
 
+      {tab === 'customers' && <StudioCustomers orders={orders} openOrder={openOrder} />}
+      {tab === 'inbox' && <StudioInbox onCreateOrder={(inquiry) => { setManual({ ...emptyManual, name: inquiry.name, email: inquiry.email, phone: inquiry.phone || '', customer_notes: inquiry.message }); setTab('add'); }} />}
+      {tab === 'inventory' && <StudioInventory />}
+      {tab === 'website' && <StudioWebsite mode={mode} />}
       <StudioCalendar
         open={calendarOpen}
         onClose={() => setCalendarOpen(false)}

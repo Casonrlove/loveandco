@@ -44,3 +44,11 @@ test('turnaround uses the last queued paid order', () => {
   const message = turnaround(schedule);
   assert.match(message.label, /Ready by/);
 });
+
+test('all work days off or invalid availability cannot spin the CPU indefinitely', () => {
+  for (const settings of [
+    { workDays: [], minutesPerSession: 180, daysOff: [] },
+    { workDays: [9], minutesPerSession: 180, daysOff: [] },
+    { workDays: [1], minutesPerSession: 0, daysOff: [] },
+  ]) assert.deepEqual(createSchedule([], settings).sessions, []);
+});

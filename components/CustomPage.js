@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useModalFocus } from '@/lib/use-modal-focus';
+
+import { useMemo, useState } from 'react';
 import { Dash, Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
 import { CART_EVENT, CART_KEY, CUSTOM_TYPES, basePrice, designFee, itemPrice } from '@/lib/catalog';
-import { loadCart } from '@/lib/cart';
+import { useCart } from '@/lib/use-cart';
 import FancySelect from './FancySelect';
 import TurnaroundNote from './TurnaroundNote';
 
@@ -20,20 +22,10 @@ const customProduct = {
 const emptyDraft = { type: '', item: '', quantity: '1', color: '', personalization: '', details: '', neededBy: '' };
 
 export default function CustomPage({ turnaround }) {
-  const [cart, setCart] = useState([]);
-  const [ready, setReady] = useState(false);
+  const [cart, setCart] = useCart();
   const [isBagOpen, setIsBagOpen] = useState(false);
+  const bagDialog = useModalFocus(isBagOpen, () => setIsBagOpen(false));
   const [draft, setDraft] = useState(emptyDraft);
-
-  useEffect(() => {
-    setCart(loadCart());
-    setReady(true);
-  }, []);
-  useEffect(() => {
-    if (!ready) return;
-    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    window.dispatchEvent(new Event(CART_EVENT));
-  }, [cart, ready]);
 
   const bag = cart;
   const hasCustomItem = bag.some((item) => item.isCustom);
@@ -105,7 +97,7 @@ export default function CustomPage({ turnaround }) {
       </form>
 
       {isBagOpen && (
-        <aside className="cart-drawer" aria-label="Shopping bag">
+        <aside ref={bagDialog} tabIndex={-1} role="dialog" aria-modal="true" className="cart-drawer" aria-label="Shopping bag">
           <button className="drawer-close" type="button" onClick={() => setIsBagOpen(false)} aria-label="Close bag"><X /></button>
           <p className="eyebrow">YOUR BAG</p>
           <h2>Good things are coming.</h2>
