@@ -6,7 +6,7 @@ Reviewed September 6, 2026. No hosting plan changes were made. These are impleme
 
 - Public pages use five-minute incremental static regeneration and bypass authentication middleware. Catalog data caches for 15 minutes; sanitized Instagram data for one hour. Studio mutations invalidate relevant caches.
 - Account, checkout, and Studio remain dynamic and private.
-- Responsive WebP files are generated at build time and served with content-hashed, immutable URLs. The 55 processed originals total 130.9 MB; their default delivery variants total 9.0 MB, approximately 93% smaller. This is not total bandwidth or CPU savings.
+- Storefront photos use their original files following the requested visual rollback. Build-generated WebP variants are no longer selected for delivery. Public page caching remains enabled; original files do not require request-time image transforms.
 - Turnaround estimates cache for five minutes. Scheduling reads only needed fields and avoids recalculation for tracking changes. Checkout reads products in one query.
 
 Reducing repeated server work helps active CPU usage, but does not guarantee a particular bill. Monitor function invocations, active CPU, memory duration, transfer, and cache behavior after deployment in the correct Playbook team. See [Vercel Fluid Compute](https://vercel.com/docs/fluid-compute).

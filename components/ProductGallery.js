@@ -77,7 +77,7 @@ function Gallery({ images, name, compact, onActivate }) {
         onPointerCancel={onPointerUp}
       >
         {photos.map((src) => (
-          <StoreImage key={src} src={src} alt={name} width="600" height="600" loading="lazy" draggable={false} />
+          <StoreImage key={src} src={src} alt={name} loading="lazy" draggable={false} />
         ))}
       </div>
       {photos.length > 1 && (

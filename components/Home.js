@@ -1,4 +1,3 @@
-import StoreImage from './StoreImage';
 import Link from 'next/link';
 import FavoritesCarousel from './FavoritesCarousel';
 import InstagramReel from './InstagramReel';
@@ -30,22 +29,16 @@ export default async function Home() {
     .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
 
   return (
-    <main>
+    <main className="home-page">
       <section className="home-intro">
         <div className="home-intro-card">
-          <p className="eyebrow">LOVE & CO. EMBROIDERY</p>
-          <h1>A name. A little thread.<br /><em>Something to keep.</em></h1>
-          <p>Personalized pieces for new babies, wedding days, and the people who make a house a home. Choose a favorite and make it theirs.</p>
-          <div className="home-actions">
-            <Link href="/shop" className="soft-button">Find your keepsake</Link>
-            <Link href="/custom" className="home-custom-link">Have something in mind? →</Link>
-          </div>
-          <p className="home-maker-note">Made with care by Anna · Love & Co.</p>
+          <p className="eyebrow">WELCOME</p>
+          <h1>Love & Co. Embroidery</h1>
+          <p>
+            Hi friends & welcome to @loveandcoembroidery! From the bottom of my heart THANK YOU for being here. Whether it’s a gift, a keepsake, or a little something to make you smile, I’d love to create something you’ll love for years to come. If you see anything you’d like or have something in mind — shoot me a message! I’d love to work with you!
+          </p>
+          <Link href="/shop" className="soft-button">Shop Our Collections</Link>
         </div>
-        <figure className="home-keepsake">
-          <StoreImage src="/images/shop/home-gift/monogram-towel-2.jpg" alt="Hand towels embroidered with framed letter monograms" width="1125" height="1941" fetchPriority="high" />
-          <figcaption>A small detail, made personal.</figcaption>
-        </figure>
       </section>
 
       {favorites.length > 0 && (
@@ -72,7 +65,7 @@ export default async function Home() {
           <div className="bundle-grid">
             {bundles.map((product) => (
               <Link className="bundle-card" href={productHref(product)} key={product.id}>
-                <StoreImage src={product.image} alt={product.name} width="600" height="600" loading="lazy" />
+                <img src={product.image} alt={product.name} />
                 <div>
                   <h3>{product.name}</h3>
                   <p>{product.detail}</p>

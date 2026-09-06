@@ -39,7 +39,7 @@ Checkout is review → Venmo → produce. Production minutes only count after an
 ## Scripts
 
 - `npm run dev` — local app
-- `npm run build` — generate static WebP variants, then build the production app
+- `npm run build` — generate image assets, then build the production app (storefront delivery currently uses original photos)
 - `npm test` — pricing, validation, scheduling, and PostgreSQL security regression tests
 - `npm run lint` — Next.js and React lint checks
 - `npm run images` — regenerate static image assets after changing originals
@@ -64,4 +64,4 @@ See [STUDIO.md](STUDIO.md) for the expanded order workbench, inquiry inbox, cust
 
 The full operations upgrade also requires `20260906000004_complete_operations.sql`: durable abuse controls, checkout retries, proofs, inventory, history, delivery, galleries, and editable shop information. Product uploads provision the public `product-photos` bucket on first upload. See [STUDIO.md](STUDIO.md).
 
-Live database update (September 6, 2026): all repository migrations are applied to Love & Co. `vouheqlstnftakhlpzmy`, and post-migration permission checks passed. No browser SQL steps remain for these migrations. Website deployment is still pending.
+Live database update (September 6, 2026): all repository migrations are applied to Love & Co. `vouheqlstnftakhlpzmy`, and post-migration permission checks passed. No browser SQL steps remain for these migrations. The website release is deployed to https://loveandco.vercel.app.

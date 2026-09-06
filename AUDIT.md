@@ -4,7 +4,7 @@ Reviewed September 6, 2026 using the frontend-design and web-design-guidelines s
 
 ## Status and scope
 
-Repository changes are implemented and locally verified. **All four September 6 migrations are now applied to the live Love & Co. database. The website code has not been deployed.** The owner reports Supabase is healthy after restoring project `vouheqlstnftakhlpzmy` (loveandco, Playbook). Supabase access to Playbook is now authorized. Live database metadata, grants, RLS, migration history, Storage, and security advisors were checked after migration. Vercel production settings and end-to-end application behavior remain unverified.
+Repository changes are implemented and locally verified. **All four September 6 migrations are now applied to the live Love & Co. database. The website release was deployed successfully to Vercel.** The owner reports Supabase is healthy after restoring project `vouheqlstnftakhlpzmy` (loveandco, Playbook). Supabase access to Playbook is now authorized. Live database metadata, grants, RLS, migration history, Storage, and security advisors were checked after migration. Vercel production settings and end-to-end application behavior remain unverified.
 
 Review covered storefront/Studio UI, authentication, API handlers, migrations and database access, checkout pricing, scheduling, caching, images, dependencies, and external integrations. Local PostgreSQL tests establish checked-in migration behavior, not the hosted project's current state.
 
@@ -37,7 +37,7 @@ Improved address autocomplete semantics, form labels, loading feedback, gallerie
 
 Public pages prerender with five-minute ISR and bypass auth middleware. Catalog caches for 15 minutes, turnaround for five minutes, sanitized Instagram for one hour; mutations invalidate relevant caches. Private routes remain dynamic. Checkout batches product reads; scheduling narrows/paginates reads and avoids unnecessary recalculation.
 
-Build-time image generation processes 55 images: 130.9 MB of originals becomes 9.0 MB for default delivery variants, about 93% smaller. Originals and additional responsive widths remain. Hashed assets cache long-term without request-time Vercel image transforms. This is not a measured billing reduction; compare Vercel usage after deployment. See [CAPACITY.md](CAPACITY.md).
+Storefront image delivery was reverted to original photo files at the owner’s request. The earlier 93% reduction measured generated variants that are no longer selected for delivery. Public page/data caching and upload-time image optimization remain enabled. See [CAPACITY.md](CAPACITY.md).
 
 ## Validation
 
@@ -99,4 +99,4 @@ Post-migration checks:
 - No Instagram token was stored in the previously public settings column at preflight.
 - Supabase security advisor reports one warning: leaked-password protection is disabled. No other WARN/ERROR security findings were returned.
 
-Website code deployment, live account/checkout/photo workflows, and Vercel settings remain pending. Historical local-only findings above should be read in conjunction with this live verification.
+Website deployment succeeded; public routes and unauthenticated Studio/API guards passed live checks. Live account/checkout/photo workflows and Vercel settings remain unverified. Historical local-only findings above should be read in conjunction with this live verification.
