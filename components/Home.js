@@ -30,56 +30,69 @@ export default async function Home() {
     .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0));
 
   return (
-    <>
+    <main>
       <section className="home-intro">
-        <div className="home-intro-card">
-          <p className="eyebrow">WELCOME</p>
-          <h1>Love & Co. Embroidery</h1>
-          <p>
-            Hi friends & welcome to @loveandcoembroidery! From the bottom of my heart THANK YOU for being here. Whether it’s a gift, a keepsake, or a little something to make you smile, I’d love to create something you’ll love for years to come. If you see anything you’d like or have something in mind — shoot me a message! I’d love to work with you!
-          </p>
-          <Link href="/shop" className="soft-button">Shop Our Collections</Link>
+        <div className="container">
+          <div className="home-intro-card">
+            <p className="eyebrow">Welcome</p>
+            <h1>Love &amp; Co. Embroidery</h1>
+            <p>
+              Hi friends &amp; welcome to @loveandcoembroidery! From the bottom of my heart THANK YOU for being here. Whether it’s a gift, a keepsake, or a little something to make you smile, I’d love to create something you’ll love for years to come. If you see anything you’d like or have something in mind — shoot me a message! I’d love to work with you!
+            </p>
+            <Link href="/shop" className="btn btn--primary btn--lg">Shop our collections</Link>
+          </div>
         </div>
       </section>
 
       {favorites.length > 0 && (
-        <section className="feature-reel home-favorites">
-          <h2>A Few of Our Favorites</h2>
-          <FavoritesCarousel
-            items={favorites.map((product) => ({
-              href: productHref(product),
-              image: product.image,
-              name: product.name,
-              price: priceLabel(product),
-            }))}
-          />
+        <section className="section">
+          <div className="container">
+            <div className="section-head">
+              <p className="eyebrow">Favorites</p>
+              <h2>A few of our favorites</h2>
+            </div>
+            <FavoritesCarousel
+              items={favorites.map((product) => ({
+                href: productHref(product),
+                image: product.image,
+                name: product.name,
+                price: priceLabel(product),
+              }))}
+            />
+          </div>
         </section>
       )}
 
       {bundles.length > 0 && (
-        <section className="home-bundles">
-          <div className="home-bundles-copy">
-            <p className="eyebrow">BABY BUNDLES</p>
-            <h2>The Keepsake, Signature, and Heirloom</h2>
-            <p>Curated sets with outfits, bibs, and burp cloths — customization included. Extra outfits, burp cloths, bibs, and paci clips can be added.</p>
+        <section className="section section--band">
+          <div className="container">
+            <div className="section-head section-head--split">
+              <div>
+                <p className="eyebrow">Baby bundles</p>
+                <h2>The Keepsake, Signature, and Heirloom</h2>
+                <p className="lede">Curated sets with outfits, bibs, and burp cloths — customization included. Extra outfits, burp cloths, bibs, and paci clips can be added.</p>
+              </div>
+              <Link href="/shop/baby-bundles" className="btn btn--secondary">Shop baby bundles</Link>
+            </div>
+            <div className="product-grid product-grid--three">
+              {bundles.map((product) => (
+                <Link className="product-card" href={productHref(product)} key={product.id}>
+                  <img src={product.image} alt={product.name} />
+                  <div className="product-card-body">
+                    <h3>{product.name}</h3>
+                    <p>{product.detail}</p>
+                    <div className="product-card-foot">
+                      <strong>${basePrice(product).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="bundle-grid">
-            {bundles.map((product) => (
-              <Link className="bundle-card" href={productHref(product)} key={product.id}>
-                <img src={product.image} alt={product.name} />
-                <div>
-                  <h3>{product.name}</h3>
-                  <p>{product.detail}</p>
-                  <strong>${basePrice(product).toFixed(2)}</strong>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <Link href="/shop/baby-bundles" className="soft-button">Shop baby bundles</Link>
         </section>
       )}
 
       <InstagramReel posts={instagram.posts} />
-    </>
+    </main>
   );
 }

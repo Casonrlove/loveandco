@@ -110,12 +110,11 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
         {String(item.designName || '').trim() && (
           <label className="name-confirm">
             <input
-              className="name-confirm-check"
-              type="checkbox"
+                type="checkbox"
               checked={Boolean(item.nameVerified)}
               onChange={(event) => update({ nameVerified: event.target.checked })}
             />
-            <span className="name-confirm-copy">
+            <span className="choice-copy">
               <strong>{NAME_WAIVER_LABEL}</strong>
               <small>Love & Co. isn’t responsible for name errors after you approve.</small>
             </span>
@@ -155,12 +154,11 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
       {String(item.designName || '').trim() && (
         <label className="name-confirm">
           <input
-            className="name-confirm-check"
             type="checkbox"
             checked={Boolean(item.nameVerified)}
             onChange={(event) => update({ nameVerified: event.target.checked })}
           />
-          <span className="name-confirm-copy">
+          <span className="choice-copy">
             <strong>{NAME_WAIVER_LABEL}</strong>
             <small>Love & Co. isn’t responsible for name errors after you approve.</small>
           </span>

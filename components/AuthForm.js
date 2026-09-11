@@ -85,10 +85,10 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
 
   return (
     <form onSubmit={submit} className="auth-card">
-      <p className="eyebrow">YOUR ACCOUNT</p>
+      <p className="eyebrow">Your account</p>
       <h2>{mode === 'signin' ? 'Welcome back.' : 'Save your orders.'}</h2>
       <p>{mode === 'signin' ? 'Sign in to see order status and tracking.' : 'Create an account with the same email you use at checkout.'}</p>
-      <div className="studio-tabs compact">
+      <div className="segmented">
         <button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>Sign in</button>
         <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>Create account</button>
       </div>
@@ -104,7 +104,7 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
       {!configured && <p className="helper">Auth is ready. Add the Supabase public environment variables to activate it.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
-      <button className="studio-primary" disabled={pending || googlePending || !configured} type="submit">{pending ? 'One moment…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
+      <button className="btn btn--primary" disabled={pending || googlePending || !configured} type="submit">{pending ? 'One moment…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
     </form>
   );
 }

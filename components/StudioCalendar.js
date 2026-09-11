@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'react-bootstrap-icons';
-import { formatDate, localDateKey } from '@/lib/scheduler';
+import { formatDate, localDateKey, weekDateKeys } from '@/lib/scheduler';
+import { useScrollLock } from '@/lib/scroll-lock';
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -19,17 +20,6 @@ function monthCells(cursor) {
     date.setDate(start.getDate() + index);
     return date;
   });
-}
-
-function datesInRange(from, to) {
-  const days = [];
-  const cursor = new Date(`${from}T12:00:00`);
-  const end = new Date(`${to}T12:00:00`);
-  while (cursor <= end) {
-    days.push(localDateKey(cursor));
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return days;
 }
 
 export default function StudioCalendar({
@@ -49,10 +39,13 @@ export default function StudioCalendar({
   const sessions = useMemo(() => Object.fromEntries((schedule.sessions || []).map((session) => [session.date, session])), [schedule]);
   const cells = useMemo(() => monthCells(cursor), [cursor]);
   const selectedSession = sessions[selected];
-  const selectedOff = (settings.daysOff || []).includes(selected);
+  const daysOff = settings.daysOff || [];
+  const selectedOff = daysOff.includes(selected);
   const selectedDate = new Date(`${selected}T12:00:00`);
-  const selectedIsWork = (settings.workDays || []).includes(selectedDate.getDay()) && !selectedOff;
+  const selectedIsWork = (settings.workDays || []).map(Number).includes(selectedDate.getDay()) && !selectedOff;
   const booked = selectedSession ? Number(minutesPerSession) - selectedSession.minutesRemaining : 0;
+
+  useScrollLock(open);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -77,46 +70,52 @@ export default function StudioCalendar({
     setSelected(key);
   };
 
+  const weekKeys = weekDateKeys(selectedDate);
+  const weekIsOff = weekKeys.every((key) => daysOff.includes(key));
+
   const offThisWeek = () => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay());
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const keys = datesInRange(localDateKey(start), localDateKey(end))
-      .filter((key) => (settings.workDays || []).includes(new Date(`${key}T12:00:00`).getDay()));
-    onSetDaysOff([...new Set([...(settings.daysOff || []), ...keys])]);
+    onSetDaysOff((current) => [...new Set([...(current.daysOff || []), ...weekKeys])]);
+  };
+
+  const restoreThisWeek = () => {
+    const week = new Set(weekKeys);
+    onSetDaysOff((current) => (current.daysOff || []).filter((date) => !week.has(date)));
   };
 
   const clearFutureOff = () => {
-    onSetDaysOff((settings.daysOff || []).filter((date) => date < today));
+    onSetDaysOff((current) => (current.daysOff || []).filter((date) => date < today));
   };
 
   return (
-    <div className="cal-overlay" role="dialog" aria-modal="true" aria-labelledby="cal-title">
-      <button className="cal-scrim" type="button" aria-label="Close calendar" onClick={onClose} />
-      <section className="cal-sheet">
+    <>
+      <button className="scrim" type="button" aria-label="Close calendar" onClick={onClose} />
+      <section className="cal-sheet" role="dialog" aria-modal="true" aria-labelledby="cal-title">
         <header className="cal-head">
           <div>
-            <p className="eyebrow">STUDIO CALENDAR</p>
+            <p className="eyebrow">Studio calendar</p>
             <h2 id="cal-title">{title}</h2>
           </div>
           <div className="cal-nav">
-            <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft /></button>
-            <button type="button" onClick={() => setCursor(startOfMonth(new Date()))}>Today</button>
-            <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight /></button>
-            <button className={`cal-mode${offMode ? ' is-on' : ''}`} type="button" onClick={() => setOffMode((value) => !value)}>
+            <button className="icon-btn" type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft aria-hidden="true" /></button>
+            <button className="btn btn--secondary btn--sm" type="button" onClick={() => setCursor(startOfMonth(new Date()))}>Today</button>
+            <button className="icon-btn" type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight aria-hidden="true" /></button>
+            <button
+              className={`btn btn--sm ${offMode ? 'btn--primary' : 'btn--secondary'}`}
+              type="button"
+              aria-pressed={offMode}
+              onClick={() => setOffMode((value) => !value)}
+            >
               {offMode ? 'Click days to take off' : 'Mark days off'}
             </button>
-            <button className="cal-close" type="button" onClick={onClose} aria-label="Close calendar"><X /></button>
           </div>
+          <button className="icon-btn cal-close" type="button" onClick={onClose} aria-label="Close calendar"><X aria-hidden="true" /></button>
         </header>
 
         <div className="cal-legend">
           <span><i className="swatch work" /> Work night</span>
           <span><i className="swatch booked" /> On the machine</span>
           <span><i className="swatch off" /> Day off</span>
-          <span>Shift-click a day to flip off · O toggles selected · M mark-off mode</span>
+          <span className="cal-hint">Shift-click a day to flip off · O toggles selected · M mark-off mode</span>
         </div>
 
         <div className="cal-weekdays">
@@ -128,7 +127,7 @@ export default function StudioCalendar({
             const outside = date.getMonth() !== cursor.getMonth();
             const session = sessions[key];
             const off = (settings.daysOff || []).includes(key);
-            const work = (settings.workDays || []).includes(date.getDay()) && !off;
+            const work = (settings.workDays || []).map(Number).includes(date.getDay()) && !off;
             const jobs = session?.jobs || [];
             const used = session ? Number(minutesPerSession) - session.minutesRemaining : 0;
             const fill = minutesPerSession ? Math.min(100, Math.round((used / Number(minutesPerSession)) * 100)) : 0;
@@ -155,33 +154,41 @@ export default function StudioCalendar({
         </div>
 
         <aside className="cal-detail">
-          <p className="eyebrow">{formatDate(selected)}</p>
-          <h3>{selectedOff ? 'Night off' : selectedIsWork ? 'Stitching night' : 'Not a work night'}</h3>
-          {selectedIsWork && (
-            <p className="helper">{booked} of {minutesPerSession} minutes reserved{selectedSession ? ` · ${selectedSession.minutesRemaining} open` : ''}.</p>
-          )}
-          {selectedSession?.jobs?.length ? (
-            <ul>
-              {selectedSession.jobs.map((job, index) => (
-                <li key={`${job.orderId}-${index}`}>
-                  <b>{job.minutes}m</b>
-                  <button type="button" className="cal-job-link" onClick={() => onOpenOrder?.(job.orderId)}>{job.customer}</button>
-                  <em>{job.phase}</em>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-copy">{selectedIsWork ? 'This night is still open.' : selectedOff ? 'You took this date off.' : 'Nothing is scheduled.'}</p>
-          )}
+          <div className="cal-detail-status">
+            <p className="eyebrow">{formatDate(selected)}</p>
+            <h3>{selectedOff ? 'Day off' : selectedIsWork ? 'Stitching night' : 'Not a stitch night'}</h3>
+            <p className="helper">
+              {selectedOff
+                ? 'This date is blocked. New work will skip it.'
+                : selectedIsWork
+                  ? `${booked} of ${minutesPerSession} minutes reserved${selectedSession ? ` · ${selectedSession.minutesRemaining} open` : ''}.`
+                  : 'Not a regular work night. You can still block it.'}
+            </p>
+          </div>
+          <div className="cal-detail-jobs">
+            {selectedSession?.jobs?.length ? (
+              <ul>
+                {selectedSession.jobs.map((job, index) => (
+                  <li key={`${job.orderId}-${index}`}>
+                    <b>{job.minutes}m</b>
+                    <button type="button" className="cal-job-link" onClick={() => onOpenOrder?.(job.orderId)}>{job.customer}</button>
+                    <em>{job.phase}</em>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <div className="cal-quick">
-            <button type="button" className="soft-button" onClick={() => onToggleDayOff(selected)}>
-              {selectedOff ? 'Restore this night' : 'Take off'}
+            <button type="button" className="btn btn--primary btn--sm" onClick={weekIsOff ? restoreThisWeek : offThisWeek}>
+              {weekIsOff ? 'Restore this week' : 'Take this week off'}
             </button>
-            <button type="button" onClick={offThisWeek}>Off this week</button>
-            <button type="button" onClick={clearFutureOff}>Clear future offs</button>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => onToggleDayOff(selected)}>
+              {selectedOff ? 'Put this date back on' : 'Block only this date'}
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={clearFutureOff}>Clear upcoming days off</button>
           </div>
         </aside>
       </section>
-    </div>
+    </>
   );
 }

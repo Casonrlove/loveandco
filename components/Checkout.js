@@ -27,6 +27,20 @@ export default function Checkout({ user, turnaround }) {
     setCart(loadCart());
     setReady(true);
   }, []);
+  // The bag drawer lives in the layout and can edit the cart while this page
+  // is open, so mirror storage back into local state when it changes.
+  useEffect(() => {
+    const sync = () => {
+      const next = loadCart();
+      setCart((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+    };
+    window.addEventListener(CART_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(CART_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   useEffect(() => {
     if (user?.venmo_username) {
       setVenmo((current) => current.trim() ? current : user.venmo_username);
@@ -104,152 +118,159 @@ export default function Checkout({ user, turnaround }) {
     }
   };
 
-  if (!ready) return <main className="checkout-page" />;
+  if (!ready) return <main className="section" />;
 
   if (isSubmitted) {
     return (
-      <main className="checkout-page">
-        <section className="checkout-confirm">
-          <p className="eyebrow">ORDER RECEIVED</p>
-          <h1>Thank you — your order is with us.</h1>
-          <TurnaroundNote turnaround={turnaround} />
-          <p>I’ll review your details and send a Venmo request. Production begins after that payment is received. You can follow status from your account if you used the same email.</p>
-          <Link href="/shop" className="soft-button">Continue shopping</Link>
-        </section>
+      <main className="section">
+        <div className="container">
+          <section className="checkout-confirm">
+            <p className="eyebrow">Order received</p>
+            <h1>Thank you — your order is with us.</h1>
+            <p>I’ll review your details and send a Venmo request. Production begins after that payment is received. You can follow status from your account if you used the same email.</p>
+            <TurnaroundNote turnaround={turnaround} />
+            <Link href="/shop" className="btn btn--primary">Continue shopping</Link>
+          </section>
+        </div>
       </main>
     );
   }
 
   if (!cart.length) {
     return (
-      <main className="checkout-page">
-        <section className="checkout-confirm">
-          <p className="eyebrow">CHECKOUT</p>
-          <h1>Your bag is empty.</h1>
-          <p>Add a piece from the shop, then come back to complete your order.</p>
-          <Link href="/shop" className="soft-button">Go to the shop</Link>
-        </section>
+      <main className="section">
+        <div className="container">
+          <section className="checkout-confirm">
+            <p className="eyebrow">Checkout</p>
+            <h1>Your bag is empty.</h1>
+            <p>Add a piece from the shop, then come back to complete your order.</p>
+            <Link href="/shop" className="btn btn--primary">Go to the shop</Link>
+          </section>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="checkout-page">
-      <section className="page-intro">
-        <p className="eyebrow">CHECKOUT</p>
-        <h1>Complete your order</h1>
-        <p>Review your bag and send your details. Custom design notes were saved when you added each piece. I only take Venmo after I review the order.</p>
-        <TurnaroundNote turnaround={turnaround} />
-      </section>
+    <main className="section">
+      <div className="container">
+        <div className="page-head">
+          <p className="eyebrow">Checkout</p>
+          <h1>Complete your order</h1>
+          <p>Review your bag and send your details. Custom design notes were saved when you added each piece. I only take Venmo after I review the order.</p>
+          <TurnaroundNote turnaround={turnaround} />
+        </div>
 
-      <form className="checkout-grid" onSubmit={submitOrder}>
-        <section className="checkout-items">
-          <p className="eyebrow">YOUR PIECES</p>
-          {cart.map((item) => {
-            const fee = designFee(item);
-            return (
-              <article className="checkout-line" key={item.id}>
-                <img src={item.image} alt="" />
-                <div className="checkout-line-copy">
-                  <div className="checkout-line-head">
-                    <div>
-                      <h2>{item.name}</h2>
-                      <p>{item.isCustom ? 'Quoted after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : isTieredNapkins(item) ? `$${basePrice(item).toFixed(2)} each` : `Item $${basePrice(item).toFixed(2)} each`}</p>
-                      {summarizeBundleAddons(item) && <p className="helper">{summarizeBundleAddons(item)}</p>}
-                    </div>
-                    <strong>{item.isCustom ? 'TBD' : `$${lineTotal(item).toFixed(2)}`}</strong>
-                  </div>
-                  {!item.isCustom && item.wantsDesign && fee > 0 && (
-                    <p className="helper">Custom design · ${fee.toFixed(2)}</p>
-                  )}
-                  {(item.wantsDesign || item.isCustom) && summarizeDesign(item) && (
-                    <p className="checkout-design-summary">{summarizeDesign(item)}</p>
-                  )}
-                  <div className="checkout-line-total">
-                    <div className="cart-controls">
+        <form className="checkout-grid" onSubmit={submitOrder}>
+          <section className="checkout-items">
+            <p className="eyebrow">Your pieces</p>
+            {cart.map((item) => {
+              const fee = designFee(item);
+              return (
+                <article className="checkout-line" key={item.id}>
+                  <img src={item.image} alt="" />
+                  <div className="checkout-line-copy">
+                    <div className="checkout-line-head">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => {
-                          const min = isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1;
-                          return item.quantity <= min ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 });
-                        }}><Dash /></button>
-                        <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
+                        <h2>{item.name}</h2>
+                        <p>{item.isCustom ? 'Quoted after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : isTieredNapkins(item) ? `$${basePrice(item).toFixed(2)} each` : `Item $${basePrice(item).toFixed(2)} each`}</p>
+                        {summarizeBundleAddons(item) && <p className="helper">{summarizeBundleAddons(item)}</p>}
                       </div>
-                      <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
+                      <strong>{item.isCustom ? 'TBD' : `$${lineTotal(item).toFixed(2)}`}</strong>
+                    </div>
+                    {!item.isCustom && item.wantsDesign && fee > 0 && (
+                      <p className="checkout-design-summary">Custom design · ${fee.toFixed(2)}</p>
+                    )}
+                    {(item.wantsDesign || item.isCustom) && summarizeDesign(item) && (
+                      <p className="checkout-design-summary">{summarizeDesign(item)}</p>
+                    )}
+                    <div className="checkout-line-total">
+                      <div className="cart-controls">
+                        <div className="qty-stepper">
+                          <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => {
+                            const min = isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1;
+                            return item.quantity <= min ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 });
+                          }}><Dash aria-hidden="true" /></button>
+                          <span>{item.quantity}</span>
+                          <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus aria-hidden="true" /></button>
+                        </div>
+                        <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
+                </article>
+              );
+            })}
+          </section>
 
-        <aside className="checkout-side">
-          <p className="eyebrow">DETAILS</p>
-          <div className="checkout-summary-card">
-            <p className="eyebrow">SUMMARY</p>
-            <p><span>Items</span><b>${itemsTotal.toFixed(2)}</b></p>
-            <p><span>Design fees</span><b>${designTotal.toFixed(2)}</b></p>
-            <p className="checkout-grand"><span>{hasCustomItem ? 'Priced total' : 'Estimated total'}</span><b>${total.toFixed(2)}</b></p>
-            {hasCustomItem && <small>Custom pieces are quoted after review and are not in this total.</small>}
-          </div>
+          <aside className="checkout-side">
+            <div className="checkout-card">
+              <p className="eyebrow">Summary</p>
+              <p className="summary-row"><span>Items</span><b>${itemsTotal.toFixed(2)}</b></p>
+              <p className="summary-row"><span>Design fees</span><b>${designTotal.toFixed(2)}</b></p>
+              <p className="summary-row summary-total"><span>{hasCustomItem ? 'Priced total' : 'Estimated total'}</span><b>${total.toFixed(2)}</b></p>
+              {hasCustomItem && <small>Custom pieces are quoted after review and are not in this total.</small>}
+            </div>
 
-          <div className="checkout-summary-card">
-            <p className="eyebrow">YOUR DETAILS</p>
-            <label>Name<input name="name" required autoComplete="name" defaultValue={user?.full_name || ''} /></label>
-            <label>Email<input type="email" name="email" required autoComplete="email" defaultValue={user?.email || ''} /></label>
-            <label>Phone<PhoneInput name="phone" defaultValue={user?.phone || ''} /></label>
-            <label>Venmo username
-              <input
-                name="venmo_username"
-                required
-                placeholder="@username"
-                autoComplete="off"
-                value={venmo}
-                onChange={(event) => {
-                  setVenmo(event.target.value);
-                  setVenmoVerified(false);
-                }}
-              />
-            </label>
-            <label className="save-address">
-              <input
-                type="checkbox"
-                name="venmo_verified"
-                value="1"
-                checked={venmoVerified}
-                onChange={(event) => setVenmoVerified(event.target.checked)}
-              />
-              <span>This Venmo username is correct</span>
-            </label>
-            {user && (
-              <label className="save-address">
-                <input type="checkbox" name="save_venmo" value="1" defaultChecked={Boolean(user.venmo_username)} />
-                <span>Save this Venmo username to my account</span>
+            <div className="checkout-card">
+              <p className="eyebrow">Your details</p>
+              <label>Name<input name="name" required autoComplete="name" defaultValue={user?.full_name || ''} /></label>
+              <label>Email<input type="email" name="email" required autoComplete="email" defaultValue={user?.email || ''} /></label>
+              <label>Phone<PhoneInput name="phone" defaultValue={user?.phone || ''} /></label>
+              <label>Venmo username
+                <input
+                  name="venmo_username"
+                  required
+                  placeholder="@username"
+                  autoComplete="off"
+                  value={venmo}
+                  onChange={(event) => {
+                    setVenmo(event.target.value);
+                    setVenmoVerified(false);
+                  }}
+                />
               </label>
-            )}
-            <p className="helper">I’ll send the Venmo request here after I review your order.</p>
-          </div>
-
-          <div className="checkout-summary-card">
-            <p className="eyebrow">SHIP TO</p>
-            <AddressFields defaultAddress={user} />
-            {user ? (
-              <label className="save-address">
-                <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
-                <span>Save this address to my account</span>
+              <label className="choice">
+                <input
+                  type="checkbox"
+                  name="venmo_verified"
+                  value="1"
+                  checked={venmoVerified}
+                  onChange={(event) => setVenmoVerified(event.target.checked)}
+                />
+                <span>This Venmo username is correct</span>
               </label>
-            ) : (
-              <p className="helper">Want this saved for next time? <Link href="/login?next=/checkout">Sign in</Link> first.</p>
-            )}
-            <label>Anything else?<textarea name="customer_notes" placeholder="Gift note, drop-off, or other details" /></label>
-            {!user && <p className="helper">Want to track this later? <Link href="/login?next=/account">Create an account</Link> with the same email.</p>}
-            {submitError && <p className="form-error" role="alert">{submitError}</p>}
-            <button className="studio-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending order…' : 'Place order'}</button>
-            <button className="continue-shopping" type="button" onClick={() => router.push('/shop')}>Back to shop</button>
-          </div>
-        </aside>
-      </form>
+              {user && (
+                <label className="choice">
+                  <input type="checkbox" name="save_venmo" value="1" defaultChecked={Boolean(user.venmo_username)} />
+                  <span>Save this Venmo username to my account</span>
+                </label>
+              )}
+              <p className="helper">I’ll send the Venmo request here after I review your order.</p>
+            </div>
+
+            <div className="checkout-card">
+              <p className="eyebrow">Ship to</p>
+              <AddressFields defaultAddress={user} />
+              {user ? (
+                <label className="choice">
+                  <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
+                  <span>Save this address to my account</span>
+                </label>
+              ) : (
+                <p className="helper">Want this saved for next time? <Link href="/login?next=/checkout">Sign in</Link> first.</p>
+              )}
+              <label>Anything else?<textarea name="customer_notes" placeholder="Gift note, drop-off, or other details" /></label>
+              {!user && <p className="helper">Want to track this later? <Link href="/login?next=/account">Create an account</Link> with the same email.</p>}
+              {submitError && <p className="form-error" role="alert">{submitError}</p>}
+              <div className="form-actions">
+                <button className="btn btn--primary btn--block" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending order…' : 'Place order'}</button>
+                <button className="btn btn--ghost btn--block" type="button" onClick={() => router.push('/shop')}>Back to shop</button>
+              </div>
+            </div>
+          </aside>
+        </form>
+      </div>
     </main>
   );
 }

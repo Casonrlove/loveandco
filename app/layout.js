@@ -1,4 +1,5 @@
 import './globals.css';
+import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import { getPublicTurnaround } from '@/lib/schedule-service';
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }) {
         <Header turnaround={turnaround} user={user} />
         {children}
         <Footer buildLabel={buildLabel()} />
+        <CartDrawer turnaround={turnaround} />
       </body>
     </html>
   );

@@ -193,7 +193,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
           onChange={(event) => setField('city', event.target.value)}
         />
       </label>
-      <div className="form-row">
+      <div className="form-grid form-grid--2">
         <label>State
           <input
             name="region"

@@ -18,7 +18,7 @@ export default function FavoritesCarousel({ items }) {
   }, [count, paused]);
 
   if (!count) return null;
-  const visibleCount = Math.min(3, count);
+  const visibleCount = Math.min(6, count);
   const visible = Array.from({ length: visibleCount }, (_, offset) => items[(index + offset) % count]);
 
   const go = (next) => setIndex((next + count) % count);
@@ -32,11 +32,13 @@ export default function FavoritesCarousel({ items }) {
       <div className="favorites-stage">
         <div className="favorites-track">
           {visible.map((item) => (
-            <Link className="favorites-slide" href={item.href} key={`${item.href}-${index}`}>
+            <Link className="product-card" href={item.href} key={`${item.href}-${index}`}>
               <img src={item.image} alt={item.name} />
-              <div className="favorites-slide-copy">
+              <div className="product-card-body">
                 <h3>{item.name}</h3>
-                <span>{item.price}</span>
+                <div className="product-card-foot">
+                  <strong>{item.price}</strong>
+                </div>
               </div>
             </Link>
           ))}
@@ -44,10 +46,10 @@ export default function FavoritesCarousel({ items }) {
         {count > 1 && (
           <>
             <button type="button" className="favorites-nav is-prev" onClick={() => go(index - 1)} aria-label="Previous favorite">
-              <ChevronLeft />
+              <ChevronLeft aria-hidden="true" />
             </button>
             <button type="button" className="favorites-nav is-next" onClick={() => go(index + 1)} aria-label="Next favorite">
-              <ChevronRight />
+              <ChevronRight aria-hidden="true" />
             </button>
           </>
         )}

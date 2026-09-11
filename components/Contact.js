@@ -30,28 +30,36 @@ export default function Contact() {
   };
 
   return (
-    <section className="page-block contact-page">
-      <div className="page-intro">
-        <p className="eyebrow">SAY HELLO</p>
-        <h1>Contact</h1>
-        <p>Have a custom project in mind or a question about an order? I’d love to hear from you.</p>
-        <TurnaroundNote />
-      </div>
-      {sent ? (
-        <div className="auth-card">
-          <p className="eyebrow">MESSAGE SENT</p>
-          <h2>Thank you — I’ll be in touch soon.</h2>
+    <main className="section">
+      <div className="container">
+        <div className="contact-layout">
+        <div className="page-head">
+          <p className="eyebrow">Say hello</p>
+          <h1>Contact</h1>
+          <p>Have a custom project in mind or a question about an order? I’d love to hear from you.</p>
+          <TurnaroundNote />
         </div>
-      ) : (
-        <form className="order-form contact-form" onSubmit={submit}>
-          <label>Name<input name="name" required autoComplete="name" /></label>
-          <label>Email address<input type="email" name="email" required autoComplete="email" /></label>
-          <label>Phone number<PhoneInput name="phone" /></label>
-          <label>Details of your request<textarea name="message" rows="5" required placeholder="Tell me about your idea, item, or question." /></label>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="studio-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending…' : 'Send message'}</button>
-        </form>
-      )}
-    </section>
+
+        {sent ? (
+          <div className="form-card">
+            <p className="eyebrow">Message sent</p>
+            <h2>Thank you — I’ll be in touch soon.</h2>
+            <p className="helper">I answer messages in the order they arrive, usually within a day or two.</p>
+          </div>
+        ) : (
+          <form className="form-card" onSubmit={submit}>
+            <label>Name<input name="name" required autoComplete="name" /></label>
+            <label>Email address<input type="email" name="email" required autoComplete="email" /></label>
+            <label>Phone number<PhoneInput name="phone" /></label>
+            <label>Details of your request<textarea name="message" rows="5" required placeholder="Tell me about your idea, item, or question." /></label>
+            {error && <p className="form-error" role="alert">{error}</p>}
+            <div className="form-actions">
+              <button className="btn btn--primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending…' : 'Send message'}</button>
+            </div>
+          </form>
+        )}
+        </div>
+      </div>
+    </main>
   );
 }

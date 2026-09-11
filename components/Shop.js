@@ -1,20 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Dash, Plus, X } from 'react-bootstrap-icons';
+import { Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ADDON_QTY_OPTIONS, BUNDLE_ADDONS, CART_EVENT, CART_KEY, CATEGORIES, NAPKIN_MIN_QTY, NAPKIN_ORDER_DESIGN_FEE, NAPKIN_QTY_OPTIONS, PACKAGE_ORDER_DESIGN_FEE, PEOPLE_OPTIONS, SHOP_HUB, addonTotal, basePrice, cartTotal, designFee, emptyBundleAddons, findProduct, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, napkinUnitPrice, normalizeBundleAddons, orderDesignFee, productHref, productImages, requiresCustomization, summarizeBundleAddons } from '@/lib/catalog';
-import { lineProductId } from '@/lib/cart';
-import { summarizeDesign, validateDesignItem } from '@/lib/design-options';
+import { ADDON_QTY_OPTIONS, BUNDLE_ADDONS, CATEGORIES, NAPKIN_MIN_QTY, NAPKIN_ORDER_DESIGN_FEE, NAPKIN_QTY_OPTIONS, PACKAGE_ORDER_DESIGN_FEE, PEOPLE_OPTIONS, SHOP_HUB, addonTotal, basePrice, designFee, emptyBundleAddons, findProduct, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, napkinUnitPrice, normalizeBundleAddons, productHref, productImages, requiresCustomization } from '@/lib/catalog';
+import { lineProductId, loadCart, persistCart } from '@/lib/cart';
+import { openCart } from '@/lib/cart-ui';
+import { validateDesignItem } from '@/lib/design-options';
 import DesignFields, { designDraftFor, emptyDesignDraft } from './DesignFields';
 import FancySelect from './FancySelect';
 import ProductGallery from './ProductGallery';
 import TurnaroundNote from './TurnaroundNote';
-
-const loadCart = () => {
-  try { return JSON.parse(window.localStorage.getItem(CART_KEY)) || []; } catch { return []; }
-};
+import { useScrollLock } from '@/lib/scroll-lock';
 
 function categoryFromPath(pathname) {
   const match = String(pathname || '').match(/^\/shop\/([^/?#]+)/);
@@ -32,8 +30,6 @@ export default function Shop({ category, productKey, products, user, turnaround 
   const pathname = usePathname();
   const params = useParams();
   const searchParams = useSearchParams();
-  const [cart, setCart] = useState(null);
-  const [isBagOpen, setIsBagOpen] = useState(false);
   const [sort, setSort] = useState('featured');
   const [priceFilter, setPriceFilter] = useState('all');
   const [openedCategory, setOpenedCategory] = useState(undefined);
@@ -69,6 +65,15 @@ export default function Shop({ category, productKey, products, user, turnaround 
     setNapkinCount(NAPKIN_MIN_QTY);
   }, [activeProduct?.id]);
 
+  useScrollLock(Boolean(addingProduct));
+
+  useEffect(() => {
+    if (!addingProduct) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setAddingProduct(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [addingProduct]);
+
   const scrollTop = () => {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -85,19 +90,6 @@ export default function Shop({ category, productKey, products, user, turnaround 
     scrollTop();
     router.push(productHref(product));
   };
-  const bag = cart || [];
-  const itemCount = bag.reduce((total, item) => total + item.quantity, 0);
-  const hasCustomItem = bag.some((item) => item.isCustom);
-  const total = useMemo(() => cartTotal(bag), [bag]);
-  const packageFee = orderDesignFee(bag);
-
-  useEffect(() => { setCart(loadCart()); }, []);
-  useEffect(() => {
-    if (!cart) return;
-    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    window.dispatchEvent(new Event(CART_EVENT));
-  }, [cart]);
-  useEffect(() => { if (searchParams.get('bag') === 'open') setIsBagOpen(true); }, [searchParams]);
 
   const addToCart = (product, extras = emptyDesignDraft) => {
     const extrasWithRequired = requiresCustomization(product)
@@ -110,17 +102,18 @@ export default function Shop({ category, productKey, products, user, turnaround 
       return false;
     }
     setDesignError('');
-    setCart((items) => {
-      if (!extrasWithRequired.wantsDesign && !isPerPersonPackage(product) && !isTieredNapkins(product)) {
-        const existing = items.find((item) => lineProductId(item) === product.id && !item.wantsDesign && !item.isCustom);
-        if (existing) {
-          return items.map((item) => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item);
-        }
-      }
+    const items = loadCart();
+    const mergeable = !extrasWithRequired.wantsDesign && !isPerPersonPackage(product) && !isTieredNapkins(product)
+      ? items.find((item) => lineProductId(item) === product.id && !item.wantsDesign && !item.isCustom)
+      : null;
+    let next;
+    if (mergeable) {
+      next = items.map((item) => (item.id === mergeable.id ? { ...item, quantity: item.quantity + 1 } : item));
+    } else {
       const quantity = isPerPersonPackage(product)
         ? peopleCount
         : (isTieredNapkins(product) ? napkinCount : 1);
-      return [...items, {
+      next = [...items, {
         ...line,
         id: `${product.id}::${crypto.randomUUID()}`,
         productId: product.id,
@@ -129,16 +122,11 @@ export default function Shop({ category, productKey, products, user, turnaround 
         bundleAddons: isBabyBundle(product) ? normalizeBundleAddons(extrasWithRequired) : undefined,
         personalization: product.personalization || '',
       }];
-    });
+    }
+    persistCart(next);
+    openCart();
     setDesignDraft(designDraftFor(product));
     setAddingProduct(null);
-    setIsBagOpen(true);
-    if (!searchParams.get('bag')) {
-      const path = product.category && (product.slug || product.id)
-        ? productHref(product)
-        : (pathname || '/shop');
-      router.replace(`${path}?bag=open`, { scroll: false });
-    }
     return true;
   };
 
@@ -155,7 +143,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
     const each = basePrice(product);
     const total = each * peopleCount;
     return (
-      <div className="people-picker">
+      <div className="buy-block people-picker">
         <p className="helper">Each person gets one trucker hat and one tote bag.</p>
         <label>Number of people
           <FancySelect
@@ -186,7 +174,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
     const extras = addonTotal({ ...product, bundleAddons: normalizeBundleAddons(designDraft) });
     const bundle = basePrice(product);
     return (
-      <div className="addon-picker">
+      <div className="buy-block addon-picker">
         <p className="helper">Add extra embroidered pieces to this bundle. Outfits $22 each, burp cloths $12, bibs $12, and paci clips $14.</p>
         <div className="addon-picker-grid">
           {BUNDLE_ADDONS.map((addon) => (
@@ -213,7 +201,7 @@ export default function Shop({ category, productKey, products, user, turnaround 
     const each = napkinUnitPrice(napkinCount);
     const total = each * napkinCount;
     return (
-      <div className="people-picker">
+      <div className="buy-block people-picker">
         <p className="helper">Priced per napkin. 10 minimum. $12 each for 10–19, $10 each for 20–39, $9 each for 40–59, and $8 each for 60 and up.</p>
         <label>Quantity
           <FancySelect
@@ -271,211 +259,179 @@ export default function Shop({ category, productKey, products, user, turnaround 
     );
   };
 
-  const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
-  const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
-
   const visibleProducts = useMemo(() => products
     .filter((item) => item.category === categoryId)
     .filter((item) => priceFilter === 'all' || (priceFilter === 'under-30' ? basePrice(item) < 30 : basePrice(item) >= 30))
     .sort((a, b) => sort === 'price-low' ? basePrice(a) - basePrice(b) : sort === 'price-high' ? basePrice(b) - basePrice(a) : sort === 'name' ? a.name.localeCompare(b.name) : (a.sort_order || 0) - (b.sort_order || 0)), [products, categoryId, priceFilter, sort]);
 
   return (
-    <main className={`shop-page${activeProduct ? ' is-item' : activeCategory ? ' is-collection' : ' is-hub'}`}>
+    <main className="shop-page">
       {activeProduct ? (
-        <section className="item-page">
-          <Link
-            href={activeCategory ? `/shop/${activeCategory.id}` : '/shop'}
-            onClick={(event) => {
-              event.preventDefault();
-              openCategory(activeCategory?.id || null);
-            }}
-          >
-            ← {activeCategory ? activeCategory.name : 'All collections'}
-          </Link>
-          <div className="item-page-layout">
-            <ProductGallery images={productImages(activeProduct)} name={activeProduct.name} />
-            <div className="item-page-copy">
-              <p className="eyebrow">{activeCategory?.preorder ? 'PREORDER' : 'CUSTOM EMBROIDERY'}</p>
-              <h1>{activeProduct.name}</h1>
-              <p>{activeProduct.detail}</p>
-              {isPerPersonPackage(activeProduct)
-                ? peoplePicker(activeProduct)
-                : isTieredNapkins(activeProduct)
-                  ? napkinPicker(activeProduct)
-                  : isBabyBundle(activeProduct)
-                    ? addonPicker(activeProduct)
-                    : <p className="item-price">${basePrice(activeProduct).toFixed(2)}</p>}
-              {designSection(activeProduct)}
-              {designError && <p className="form-error" role="alert">{designError}</p>}
-              <TurnaroundNote turnaround={turnaround} />
-              <button className="studio-primary" type="button" onClick={() => addToCart(activeProduct, designDraft)}>Add to bag</button>
+        <section className="section">
+          <div className="container">
+            <Link
+              className="back-link"
+              href={activeCategory ? `/shop/${activeCategory.id}` : '/shop'}
+              onClick={(event) => {
+                event.preventDefault();
+                openCategory(activeCategory?.id || null);
+              }}
+            >
+              ← {activeCategory ? activeCategory.name : 'All collections'}
+            </Link>
+            <div className="item-page-layout">
+              <ProductGallery images={productImages(activeProduct)} name={activeProduct.name} />
+              <div className="item-page-copy">
+                <p className="eyebrow">{activeCategory?.preorder ? 'Preorder' : 'Custom embroidery'}</p>
+                <h1>{activeProduct.name}</h1>
+                <p>{activeProduct.detail}</p>
+                {isPerPersonPackage(activeProduct)
+                  ? peoplePicker(activeProduct)
+                  : isTieredNapkins(activeProduct)
+                    ? napkinPicker(activeProduct)
+                    : isBabyBundle(activeProduct)
+                      ? addonPicker(activeProduct)
+                      : <p className="item-price">${basePrice(activeProduct).toFixed(2)}</p>}
+                {designSection(activeProduct)}
+                {designError && <p className="form-error" role="alert">{designError}</p>}
+                <TurnaroundNote turnaround={turnaround} />
+                <button className="btn btn--primary btn--lg" type="button" onClick={() => addToCart(activeProduct, designDraft)}>Add to bag</button>
+              </div>
             </div>
           </div>
         </section>
       ) : !activeCategory ? (
         <>
-          <section className="shop-intro">
-            <p className="eyebrow">THE LOVE & CO. SHOP</p>
-            <h1>Personal pieces, <i>made for your people.</i></h1>
-            <p>Choose a collection, make it yours, and we’ll carefully bring it to life.</p>
-            <TurnaroundNote turnaround={turnaround} />
+          <section className="shop-hero shop-hero--center">
+            <div className="container">
+              <p className="eyebrow">The Love &amp; Co. shop</p>
+              <h1>Personal pieces, <i>made for your people.</i></h1>
+              <p>Choose a collection, make it yours, and we’ll carefully bring it to life.</p>
+              <TurnaroundNote turnaround={turnaround} />
+            </div>
           </section>
-          <section className="shop-products shop-hub">
-            {SHOP_HUB.map((item) => (
-                <Link
-                  className="product-card"
-                  href={item.shopPath}
-                  key={item.id}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    openCategory(item.id);
-                  }}
-                >
-                  <img src={item.image} alt={item.name} />
-                  <div>
-                    {item.preorder && <p className="eyebrow">PREORDER</p>}
-                    <h2>{item.name}</h2>
-                    <p>{item.detail}</p>
-                  </div>
-                </Link>
-            ))}
+          <section className="section section--tight">
+            <div className="container">
+              <div className="product-grid">
+                {SHOP_HUB.map((item) => (
+                  <Link
+                    className="product-card"
+                    href={item.shopPath}
+                    key={item.id}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openCategory(item.id);
+                    }}
+                  >
+                    <div className="product-card-media">
+                      <img src={item.image} alt="" />
+                      {item.preorder && <span className="card-badge">Preorder</span>}
+                    </div>
+                    <div className="product-card-body">
+                      <h2>{item.name}</h2>
+                      <p>{item.detail}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
           </section>
         </>
       ) : (
         <>
-          <section className="catalog-hero">
-            <Link href="/shop" onClick={(event) => { event.preventDefault(); openCategory(null); }}>← All collections</Link>
-            <p className="eyebrow">THE LOVE & CO. SHOP</p>
-            <h1>{activeCategory.name}</h1>
-            <p>{activeCategory.detail}</p>
-            <TurnaroundNote turnaround={turnaround} />
+          <section className="shop-hero">
+            <div className="container">
+              <Link className="back-link" href="/shop" onClick={(event) => { event.preventDefault(); openCategory(null); }}>← All collections</Link>
+              <p className="eyebrow">The Love &amp; Co. shop</p>
+              <h1>{activeCategory.name}</h1>
+              <p>{activeCategory.detail}</p>
+              <TurnaroundNote turnaround={turnaround} />
+            </div>
           </section>
-          <section className="catalog-controls">
-            <p>{visibleProducts.length} {visibleProducts.length === 1 ? 'piece' : 'pieces'}</p>
-            <label>Filter
-              <FancySelect
-                compact
-                value={priceFilter}
-                onChange={setPriceFilter}
-                options={[
-                  { value: 'all', label: 'All prices' },
-                  { value: 'under-30', label: 'Under $30' },
-                  { value: '30-plus', label: '$30 and up' },
-                ]}
-              />
-            </label>
-            <label>Sort
-              <FancySelect
-                compact
-                value={sort}
-                onChange={setSort}
-                options={[
-                  { value: 'featured', label: 'Featured' },
-                  { value: 'price-low', label: 'Price: low to high' },
-                  { value: 'price-high', label: 'Price: high to low' },
-                  { value: 'name', label: 'Name: A–Z' },
-                ]}
-              />
-            </label>
-          </section>
-          <section className="shop-products catalog-products">
-            {visibleProducts.map((product) => (
-              <article className="product-card" key={product.id}>
-                <ProductGallery
-                  compact
-                  images={productImages(product)}
-                  name={product.name}
-                  onActivate={() => openItem(product)}
-                />
-                <Link href={productHref(product)} onClick={(event) => { event.preventDefault(); openItem(product); }}>
-                  <div>
-                    <p className="eyebrow">CUSTOM EMBROIDERY</p>
-                    <h2>{product.name}</h2>
-                    <p>{product.detail}</p>
-                  </div>
-                </Link>
-                <div className="product-bottom">
-                  <strong>{isPerPersonPackage(product) ? `$${Number(product.item_price || product.price || 0).toFixed(2)} / person` : isTieredNapkins(product) ? 'From $8.00 each' : `$${basePrice(product).toFixed(2)}`}</strong>
-                  <button onClick={() => startAdd(product)} type="button">Add to bag <Plus /></button>
+          <section className="section section--tight">
+            <div className="container">
+              <div className="catalog-controls">
+                <p className="catalog-count">{visibleProducts.length} {visibleProducts.length === 1 ? 'piece' : 'pieces'}</p>
+                <label>Filter
+                  <FancySelect
+                    compact
+                    value={priceFilter}
+                    onChange={setPriceFilter}
+                    options={[
+                      { value: 'all', label: 'All prices' },
+                      { value: 'under-30', label: 'Under $30' },
+                      { value: '30-plus', label: '$30 and up' },
+                    ]}
+                  />
+                </label>
+                <label>Sort
+                  <FancySelect
+                    compact
+                    value={sort}
+                    onChange={setSort}
+                    options={[
+                      { value: 'featured', label: 'Featured' },
+                      { value: 'price-low', label: 'Price: low to high' },
+                      { value: 'price-high', label: 'Price: high to low' },
+                      { value: 'name', label: 'Name: A–Z' },
+                    ]}
+                  />
+                </label>
+              </div>
+              {visibleProducts.length === 0 ? (
+                <p className="empty-catalog">Nothing is listed in this collection yet. A custom order is always welcome.</p>
+              ) : (
+                <div className="product-grid">
+                  {visibleProducts.map((product) => (
+                    <article className="product-card" key={product.id}>
+                      <ProductGallery
+                        compact
+                        images={productImages(product)}
+                        name={product.name}
+                        onActivate={() => openItem(product)}
+                      />
+                      <div className="product-card-body">
+                        <Link href={productHref(product)} onClick={(event) => { event.preventDefault(); openItem(product); }}>
+                          <h2>{product.name}</h2>
+                          <p>{product.detail}</p>
+                        </Link>
+                        <div className="product-card-foot">
+                          <strong>{isPerPersonPackage(product) ? `$${Number(product.item_price || product.price || 0).toFixed(2)} / person` : isTieredNapkins(product) ? 'From $8.00' : `$${basePrice(product).toFixed(2)}`}</strong>
+                          <button className="btn btn--secondary btn--sm" onClick={() => startAdd(product)} type="button">Add <Plus aria-hidden="true" /></button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-              </article>
-            ))}
+              )}
+            </div>
           </section>
-          {visibleProducts.length === 0 && <p className="empty-catalog">Nothing is listed in this collection yet. A custom order is always welcome.</p>}
         </>
       )}
 
       {addingProduct && (
-        <div className="checkout-overlay item-overlay" role="dialog" aria-modal="true" aria-labelledby="add-item-title">
-          <section className="checkout-card item-card add-item-card">
-            <button className="drawer-close" type="button" onClick={() => setAddingProduct(null)} aria-label="Close"><X /></button>
-            <p className="eyebrow">ADD TO BAG</p>
-            <h2 id="add-item-title">{addingProduct.name}</h2>
+        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="add-item-title">
+          <button className="scrim" type="button" aria-label="Close" onClick={() => setAddingProduct(null)} />
+          <section className="modal">
+            <button className="drawer-close" type="button" onClick={() => setAddingProduct(null)} aria-label="Close"><X aria-hidden="true" /></button>
+            <p className="eyebrow">Add to bag</p>
+            <h2 className="modal-title" id="add-item-title">{addingProduct.name}</h2>
             {isPerPersonPackage(addingProduct)
               ? peoplePicker(addingProduct)
               : isTieredNapkins(addingProduct)
                 ? napkinPicker(addingProduct)
                 : isBabyBundle(addingProduct)
                   ? addonPicker(addingProduct)
-                  : <p>${basePrice(addingProduct).toFixed(2)}</p>}
+                  : <p className="item-price">${basePrice(addingProduct).toFixed(2)}</p>}
             {designSection(addingProduct)}
             {designError && <p className="form-error" role="alert">{designError}</p>}
-            <button className="studio-primary" type="button" onClick={() => addToCart(addingProduct, designDraft)}>Add to bag</button>
+            <div className="form-actions">
+              <button className="btn btn--primary btn--block" type="button" onClick={() => addToCart(addingProduct, designDraft)}>Add to bag</button>
+            </div>
           </section>
         </div>
       )}
 
-      {isBagOpen && (
-        <aside className="cart-drawer" aria-label="Shopping bag">
-          <button className="drawer-close" type="button" onClick={() => setIsBagOpen(false)} aria-label="Close bag"><X /></button>
-          <p className="eyebrow">YOUR BAG</p>
-          <h2>Good things are coming.</h2>
-          {bag.length === 0 ? <p>Your bag is waiting for something special.</p> : (
-            <>
-              <div className="cart-items">
-                {bag.map((item) => (
-                  <article className="cart-line" key={item.id}>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <span>{item.isCustom ? 'Price to be confirmed after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : isTieredNapkins(item) ? `$${basePrice(item).toFixed(2)} each` : `$${basePrice(item).toFixed(2)} each`}</span>
-                      {!item.isCustom && item.wantsDesign && designFee(item) > 0 && (
-                        <span className="cart-design-fee">Custom design +${designFee(item).toFixed(2)}</span>
-                      )}
-                      {summarizeBundleAddons(item) && (
-                        <span className="cart-design-fee">{summarizeBundleAddons(item)}</span>
-                      )}
-                      {item.wantsDesign && summarizeDesign(item) && (
-                        <span className="cart-design-fee">{summarizeDesign(item)}</span>
-                      )}
-                    </div>
-                    <div className="cart-controls">
-                      <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity === 1 ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
-                        <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
-                      </div>
-                      <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              {packageFee > 0 && (
-                <div className="cart-total">
-                  <span>One-time design fee</span>
-                  <strong>${packageFee.toFixed(2)}</strong>
-                </div>
-              )}
-              <div className="cart-total">
-                <span>{hasCustomItem ? 'Priced items subtotal' : 'Estimated total'}</span>
-                <strong>${total.toFixed(2)}</strong>
-              </div>
-              {hasCustomItem && <small>Custom items are quoted after review and are not included in this subtotal.</small>}
-              <TurnaroundNote turnaround={turnaround} compact />
-              <Link className="studio-primary" href="/checkout" onClick={() => setIsBagOpen(false)}>Continue to checkout</Link>
-            </>
-          )}
-        </aside>
-      )}
     </main>
   );
 }

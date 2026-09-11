@@ -25,12 +25,12 @@ export default function ForgotPasswordForm({ configured }) {
 
   return (
     <form onSubmit={submit} className="auth-card">
-      <p className="eyebrow">ACCOUNT RECOVERY</p>
+      <p className="eyebrow">Account recovery</p>
       <h2>Reset your password.</h2>
       <label>Email<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
-      <button className="studio-primary" disabled={pending || !configured} type="submit">{pending ? 'Sending…' : 'Send reset link'}</button>
+      <button className="btn btn--primary" disabled={pending || !configured} type="submit">{pending ? 'Sending…' : 'Send reset link'}</button>
       <p className="helper"><Link href="/login">Back to sign in</Link></p>
     </form>
   );

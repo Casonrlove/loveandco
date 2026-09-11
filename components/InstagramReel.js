@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { X } from 'react-bootstrap-icons';
 import Link from 'next/link';
 import { INSTAGRAM_PROFILE, INSTAGRAM_USERNAME } from '@/lib/instagram-profile';
+import { useScrollLock } from '@/lib/scroll-lock';
 
 function formatPosted(value) {
   if (!value) return '';
@@ -14,11 +16,22 @@ function formatPosted(value) {
 export default function InstagramReel({ posts }) {
   const [openId, setOpenId] = useState('');
   const open = posts.find((post) => post.id === openId);
+  useScrollLock(Boolean(open));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setOpenId(''); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   return (
-    <section className="feature-reel">
-      <p className="eyebrow">INSTAGRAM</p>
-      <h2>@{INSTAGRAM_USERNAME}</h2>
+    <section className="section">
+      <div className="container">
+        <div className="section-head">
+          <p className="eyebrow">Instagram</p>
+          <h2>@{INSTAGRAM_USERNAME}</h2>
+        </div>
       {posts.length > 0 ? (
         <div className="reel">
           {posts.map((post) => (
@@ -32,16 +45,17 @@ export default function InstagramReel({ posts }) {
           ))}
         </div>
       ) : (
-        <p className="instagram-empty-copy">
+        <p className="helper">
           See the latest on <a href={INSTAGRAM_PROFILE} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_USERNAME}</a>.
         </p>
       )}
+      </div>
 
       {open && (
-        <div className="instagram-overlay" role="dialog" aria-modal="true" aria-labelledby="instagram-post-title">
-          <button type="button" className="instagram-scrim" aria-label="Close post" onClick={() => setOpenId('')} />
+        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="instagram-post-title">
+          <button type="button" className="scrim" aria-label="Close post" onClick={() => setOpenId('')} />
           <article className="instagram-post">
-            <button type="button" className="drawer-close" onClick={() => setOpenId('')} aria-label="Close">×</button>
+            <button type="button" className="drawer-close" onClick={() => setOpenId('')} aria-label="Close"><X aria-hidden="true" /></button>
             {open.type === 'VIDEO' ? (
               <video src={open.url} controls playsInline />
             ) : (
@@ -61,8 +75,8 @@ export default function InstagramReel({ posts }) {
               {open.postedAt && <p className="helper">{formatPosted(open.postedAt)}</p>}
               <p>{open.caption || 'A Love & Co. piece from Instagram.'}</p>
               <div className="inline-actions">
-                <a className="soft-button" href={open.permalink} target="_blank" rel="noopener noreferrer">View on Instagram</a>
-                <Link className="ghost-button" href="/contact">Ask about this piece</Link>
+                <a className="btn btn--primary" href={open.permalink} target="_blank" rel="noopener noreferrer">View on Instagram</a>
+                <Link className="btn btn--secondary" href="/custom">Ask about this piece</Link>
               </div>
             </div>
           </article>
