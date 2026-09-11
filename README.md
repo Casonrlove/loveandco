@@ -29,12 +29,21 @@ The login page has **Continue with Google**. Enable it in the Love & Co. Supabas
 3. Authorized redirect URI: `https://vouheqlstnftakhlpzmy.supabase.co/auth/v1/callback`
 4. Supabase → Authentication → Providers → Google → enable, paste Client ID and Secret.
 5. Supabase → Authentication → URL Configuration:
-   - Site URL: `http://localhost:3000` (later the live domain)
-   - Redirect URLs: `http://localhost:3000/auth/callback` and the production callback
+   - Site URL: `https://loveandco.vercel.app`
+   - Redirect URLs: `https://loveandco.vercel.app/auth/callback`, `https://*.vercel.app/**`, and `http://localhost:3000/auth/callback` for local work
 
 Sign in with `loveandcoembroidery@gmail.com` to open Studio.
 
 Checkout is review → Venmo → produce. Production minutes only count after an order is marked paid.
+
+## Customer emails
+
+Studio can email the customer when you request Venmo, mark paid, start, ship, or complete an order. Shipping mail includes the tracking number if you saved one.
+
+1. Create a [Resend](https://resend.com) account and API key.
+2. Verify a domain you own (Gmail cannot be the from address).
+3. In Studio → Availability, paste the key and a from address like `Love & Co. Embroidery <orders@yourdomain.com>`.
+4. Send the test email, then ship an order to confirm.
 
 ## Scripts
 

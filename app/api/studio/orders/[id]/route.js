@@ -23,9 +23,10 @@ export async function PATCH(request, { params }) {
     const order = await updateOrder(id, patch);
     await refreshPromisedDates();
     const next = await getOrder(id);
+    const event = patch.fulfillment_status || patch.payment_status || '';
     const message = customerMessage(next || order, patch);
-    if (message) await notifyOrderUpdate(next || order, message);
-    return Response.json({ order: next || order });
+    const email = message ? await notifyOrderUpdate(next || order, message, { event }) : { status: 'skipped' };
+    return Response.json({ order: next || order, email });
   } catch (error) {
     return jsonError(error);
   }

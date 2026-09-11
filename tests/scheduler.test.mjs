@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addBusinessDays, createSchedule, defaultSettings, formatDate, schedulableOrders, turnaround } from '../lib/scheduler.js';
+import { addBusinessDays, createSchedule, defaultSettings, formatDate, normalizeSettings, schedulableOrders, turnaround, weekDateKeys } from '../lib/scheduler.js';
 
 test('packs design then stitch onto Mon/Wed/Fri sessions', () => {
   const schedule = createSchedule([{
@@ -43,4 +43,13 @@ test('turnaround uses the last queued paid order', () => {
   ], defaultSettings);
   const message = turnaround(schedule);
   assert.match(message.label, /Ready by/);
+});
+
+test('normalizeSettings coerces work day strings so week-off matching works', () => {
+  const settings = normalizeSettings({ workDays: ['1', '3', '5'], daysOff: [] });
+  assert.deepEqual(settings.workDays, [1, 3, 5]);
+  const week = weekDateKeys(new Date(2026, 7, 15));
+  assert.equal(week.length, 7);
+  assert.equal(week[0], '2026-08-09');
+  assert.equal(week[6], '2026-08-15');
 });
