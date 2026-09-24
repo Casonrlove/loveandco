@@ -17,13 +17,17 @@ import FancySelect from './FancySelect';
 import ProductGallery from './ProductGallery';
 import TurnaroundNote from './TurnaroundNote';
 
+const VALID_SORTS = new Set(['featured', 'price-low', 'price-high', 'name']);
+const VALID_PRICE_FILTERS = new Set(['all', 'under-30', '30-plus']);
+
 export default function Shop(props) {
   const pathname = usePathname();
   return <ShopContent key={pathname} {...props} />;
 }
 
-function ShopContent({ category, productKey, products, turnaround }) {
+function ShopContent({ category, productKey, products }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [cart, setCart] = useCart();
   const [bagRequested, setBagRequested] = useState(false);
@@ -36,8 +40,18 @@ function ShopContent({ category, productKey, products, turnaround }) {
       window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
     }
   };
-  const [sort, setSort] = useState('featured');
-  const [priceFilter, setPriceFilter] = useState('all');
+  const sortParam = searchParams.get('sort');
+  const priceFilterParam = searchParams.get('priceFilter');
+  const sort = VALID_SORTS.has(sortParam) ? sortParam : 'featured';
+  const priceFilter = VALID_PRICE_FILTERS.has(priceFilterParam) ? priceFilterParam : 'all';
+  const updateCatalogQuery = (key, value, allowed, fallback) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const nextValue = allowed.has(value) ? value : fallback;
+    if (nextValue === fallback) params.delete(key);
+    else params.set(key, nextValue);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
   const [designDraft, setDesignDraft] = useState(() => designDraftFor(findProduct(products, productKey)));
   const [designError, setDesignError] = useState('');
   const [addingProduct, setAddingProduct] = useState(null);
@@ -279,7 +293,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
                     : <p className="item-price">${basePrice(activeProduct).toFixed(2)}</p>}
               {designSection(activeProduct)}
               {designError && <p className="form-error" role="alert">{designError}</p>}
-              <TurnaroundNote turnaround={turnaround} />
+              <TurnaroundNote />
               <button className="studio-primary" type="button" onClick={() => addToCart(activeProduct, designDraft)}>Add to bag</button>
             </div>
           </div>
@@ -290,7 +304,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
             <p className="eyebrow">THE LOVE & CO. SHOP</p>
             <h1>Personal pieces, <i>made for your people.</i></h1>
             <p>Choose a collection, make it yours, and we’ll carefully bring it to life.</p>
-            <TurnaroundNote turnaround={turnaround} />
+            <TurnaroundNote />
           </section>
           <section className="shop-products shop-hub">
             {SHOP_HUB.map((item) => (
@@ -304,7 +318,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
                     openCategory(item.id);
                   }}
                 >
-                  <StoreImage src={item.image} alt={item.name} />
+                  <StoreImage src={item.image} alt={item.name} sizes="(min-width: 1100px) 13vw, (min-width: 640px) 30vw, 46vw" />
                   <div>
                     {item.preorder && <p className="eyebrow">PREORDER</p>}
                     <h2>{item.name}</h2>
@@ -321,7 +335,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
             <p className="eyebrow">THE LOVE & CO. SHOP</p>
             <h1>{activeCategory.name}</h1>
             <p>{activeCategory.detail}</p>
-            <TurnaroundNote turnaround={turnaround} />
+            <TurnaroundNote />
           </section>
           <section className="catalog-controls">
             <p>{visibleProducts.length} {visibleProducts.length === 1 ? 'piece' : 'pieces'}</p>
@@ -329,7 +343,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
               <FancySelect
                 compact
                 value={priceFilter}
-                onChange={setPriceFilter}
+                onChange={(value) => updateCatalogQuery('priceFilter', value, VALID_PRICE_FILTERS, 'all')}
                 options={[
                   { value: 'all', label: 'All prices' },
                   { value: 'under-30', label: 'Under $30' },
@@ -341,7 +355,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
               <FancySelect
                 compact
                 value={sort}
-                onChange={setSort}
+                onChange={(value) => updateCatalogQuery('sort', value, VALID_SORTS, 'featured')}
                 options={[
                   { value: 'featured', label: 'Featured' },
                   { value: 'price-low', label: 'Price: low to high' },
@@ -443,7 +457,7 @@ function ShopContent({ category, productKey, products, turnaround }) {
                 <strong>${total.toFixed(2)}</strong>
               </div>
               {hasCustomItem && <small>Custom items are quoted after review and are not included in this subtotal.</small>}
-              <TurnaroundNote turnaround={turnaround} compact />
+              <TurnaroundNote compact />
               <Link className="studio-primary" href="/checkout" onClick={() => setIsBagOpen(false)}>Continue to checkout</Link>
             </>
           )}

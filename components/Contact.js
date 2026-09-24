@@ -4,7 +4,7 @@ import { useState } from 'react';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
 
-export default function Contact({ turnaround }) {
+export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -35,7 +35,7 @@ export default function Contact({ turnaround }) {
         <p className="eyebrow">SAY HELLO</p>
         <h1>Contact</h1>
         <p>Have a custom project in mind or a question about an order? I’d love to hear from you.</p>
-        <TurnaroundNote turnaround={turnaround} />
+        <TurnaroundNote />
       </div>
       {sent ? (
         <div className="auth-card" role="status">

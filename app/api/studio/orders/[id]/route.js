@@ -1,7 +1,6 @@
 import { orderOperations } from '@/lib/operations-store';
 import { validateOrderPatch } from '@/lib/studio-operations';
 import { requireStudio } from '@/lib/studio-guard';
-import { revalidateTag } from 'next/cache';
 import { readJsonBody } from '@/lib/security';
 import { jsonError, requireAdmin } from '@/lib/require-admin';
 import { notifyOrderUpdate } from '@/lib/notifications';
@@ -40,7 +39,6 @@ export async function PATCH(request, { params }) {
     const changed = Object.fromEntries(Object.entries(patch).filter(([key, value]) => value !== current[key]));
     const message = warning ? '' : customerMessage(next || order, changed);
     const notification = message ? await notifyOrderUpdate(next || order, message) : { status: 'skipped' };
-    if (changesSchedule) revalidateTag('turnaround', 'max');
     return Response.json({ order: next || order, notification, warning });
   } catch (error) {
     return jsonError(error);

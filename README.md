@@ -39,14 +39,14 @@ Checkout is review → Venmo → produce. Production minutes only count after an
 ## Scripts
 
 - `npm run dev` — local app
-- `npm run build` — generate image assets, then build the production app (storefront delivery currently uses original photos)
+- `npm run build` — generate image assets, then build the production app (large library photos use responsive WebP variants)
 - `npm test` — pricing, validation, scheduling, and PostgreSQL security regression tests
 - `npm run lint` — Next.js and React lint checks
 - `npm run images` — regenerate static image assets after changing originals
 
 ## Public caching and hosting usage
 
-Marketing and shop pages use incremental static regeneration. Public turnaround data refreshes after 5 minutes, the catalog after 15 minutes, and the Instagram feed after 1 hour. Studio changes invalidate the relevant cache. Account, checkout, auth, and Studio requests stay dynamic; no private data is put in shared caches. Public pages do not run the auth proxy.
+Marketing and shop pages use incremental static regeneration. The catalog refreshes after 15 minutes and the Instagram feed after 1 hour. Turnaround dates load from an uncached endpoint at visit time, so cached page HTML cannot show an expired estimate. Studio changes invalidate the relevant caches. Account, checkout, auth, and Studio requests stay dynamic; no private data is put in shared caches. Public pages do not run the auth proxy.
 
 `predev` and `prebuild` generate `public/media` and `lib/generated-images.json` from the original photos. These generated artifacts are ignored by Git. Use the npm scripts rather than calling `next build` directly. Images have content-hashed URLs, responsive widths, and long cache lifetimes; no Vercel image transformations are needed. An unreadable, unused original (`Baby_5.png`, actually HEIC) is skipped with a warning.
 

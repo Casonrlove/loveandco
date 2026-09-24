@@ -13,7 +13,7 @@ import AddressFields from './AddressFields';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
 
-export default function Checkout({ user, turnaround, website }) {
+export default function Checkout({ user, website }) {
   const [cart, setCart, ready] = useCart();
   const submitting = useRef(false);
   const retry = useRef(null);
@@ -94,7 +94,7 @@ export default function Checkout({ user, turnaround, website }) {
         <section className="checkout-confirm">
           <p className="eyebrow">ORDER RECEIVED</p>
           <h1>Thank you — your order is with us.</h1>
-          <TurnaroundNote turnaround={turnaround} />
+          <TurnaroundNote />
           <p>I’ll review your details and send a Venmo request. Production begins after that payment is received. You can follow status from your account if you used the same email.</p>
           <Link href="/shop" className="soft-button">Continue shopping</Link>
         </section>
@@ -121,7 +121,7 @@ export default function Checkout({ user, turnaround, website }) {
         <p className="eyebrow">CHECKOUT</p>
         <h1>Complete your order</h1>
         <p>Review your bag and send your details. Custom design notes were saved when you added each piece. I only take Venmo after I review the order.</p>
-        <TurnaroundNote turnaround={turnaround} />
+        <TurnaroundNote />
       </section>
 
       <form className="checkout-grid" onSubmit={submitOrder}>
@@ -155,7 +155,7 @@ export default function Checkout({ user, turnaround, website }) {
                           return item.quantity <= min ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 });
                         }}><Dash /></button>
                         <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
+                        <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
                       <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
                     </div>

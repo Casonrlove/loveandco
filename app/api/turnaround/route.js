@@ -1,9 +1,8 @@
-import { getPublicTurnaround } from '@/lib/schedule-service';
+import { getFreshPublicTurnaround } from '@/lib/schedule-service';
 
-export const revalidate = 300;
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const turnaround = await getPublicTurnaround();
-  return Response.json(turnaround);
+  const turnaround = await getFreshPublicTurnaround();
+  return Response.json(turnaround, { headers: { 'Cache-Control': 'no-store' } });
 }

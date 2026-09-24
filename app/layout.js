@@ -2,7 +2,6 @@ import './globals.css';
 import { getPublicWebsite } from '@/lib/public-data';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
-import { getPublicTurnaround } from '@/lib/schedule-service';
 
 export const revalidate = 900;
 
@@ -19,7 +18,7 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }) {
-  const [turnaround, website] = await Promise.all([getPublicTurnaround(), getPublicWebsite()]);
+  const website = await getPublicWebsite();
 
   return (
     <html lang="en" data-scroll-behavior="smooth">
@@ -29,7 +28,7 @@ export default async function RootLayout({ children }) {
       </head>
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        <Header turnaround={turnaround} />
+        <Header />
         {(website.announcement || !website.ordersOpen) && <aside className="shop-announcement" aria-label="Shop announcement">{website.announcement && <p>{website.announcement}</p>}{!website.ordersOpen && <p>{website.pausedMessage}</p>}</aside>}
         <div id="main-content" tabIndex={-1}>{children}</div>
         <Footer />

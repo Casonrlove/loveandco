@@ -7,6 +7,7 @@ import { Dash, Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
 import { CART_EVENT, CART_KEY, CUSTOM_TYPES, basePrice, designFee, itemPrice } from '@/lib/catalog';
 import { useCart } from '@/lib/use-cart';
+import { parseCustomQuantity } from '@/lib/custom-order';
 import FancySelect from './FancySelect';
 import TurnaroundNote from './TurnaroundNote';
 
@@ -21,7 +22,7 @@ const customProduct = {
 };
 const emptyDraft = { type: '', item: '', quantity: '1', color: '', personalization: '', details: '', neededBy: '' };
 
-export default function CustomPage({ turnaround }) {
+export default function CustomPage() {
   const [cart, setCart] = useCart();
   const [isBagOpen, setIsBagOpen] = useState(false);
   const bagDialog = useModalFocus(isBagOpen, () => setIsBagOpen(false));
@@ -35,11 +36,12 @@ export default function CustomPage({ turnaround }) {
 
   const addCustomToCart = (event) => {
     event.preventDefault();
+    const quantity = parseCustomQuantity(draft.quantity);
+    if (quantity === null) return;
     const projectType = CUSTOM_TYPES[draft.type];
     const details = [
       `Category: ${projectType.label}`,
       `Item: ${draft.item}`,
-      `Quantity: ${draft.quantity}`,
       draft.color && `Color / material: ${draft.color}`,
       draft.personalization && `Personalization: ${draft.personalization}`,
       draft.neededBy && `Needed by: ${draft.neededBy}`,
@@ -48,9 +50,9 @@ export default function CustomPage({ turnaround }) {
     setCart((items) => [...items, {
       ...customProduct,
       id: `custom-${crypto.randomUUID()}`,
-      quantity: 1,
+      quantity,
       personalization: details,
-      custom_details: draft,
+      custom_details: { ...draft, quantity: String(quantity) },
     }]);
     setDraft(emptyDraft);
     setIsBagOpen(true);
@@ -62,7 +64,7 @@ export default function CustomPage({ turnaround }) {
         <p className="eyebrow">MADE JUST FOR YOU</p>
         <h1>Custom</h1>
         <p>Tell me what you’re dreaming up. I’ll review it and send a quote before anything is stitched.</p>
-        <TurnaroundNote turnaround={turnaround} />
+        <TurnaroundNote />
       </section>
 
       <form className="order-form custom-page-form" onSubmit={addCustomToCart}>
@@ -87,7 +89,7 @@ export default function CustomPage({ turnaround }) {
           </label>
         )}
         <div className="form-row">
-          <label>How many?<input type="number" min="1" required value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label>
+          <label>How many?<input type="number" min="1" max="500" step="1" required value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: event.target.value })} /></label>
           <label>Color / material<input value={draft.color} onChange={(event) => setDraft({ ...draft, color: event.target.value })} placeholder="Optional" /></label>
         </div>
         <label>Personalization<input value={draft.personalization} onChange={(event) => setDraft({ ...draft, personalization: event.target.value })} placeholder="Names, monogram, wording" /></label>
@@ -117,7 +119,7 @@ export default function CustomPage({ turnaround }) {
                       <div>
                         <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity === 1 ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
+                        <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
                       <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
                     </div>

@@ -433,7 +433,7 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
   width: 100%;
 }
 .shop-intro h1, .catalog-hero h1 { font-size: clamp(2.8rem, 7vw, 6rem); line-height: 0.95; margin: 0; }
-.shop-intro h1 { font-size: clamp(1.1rem, 4.8vw, 3.4rem); white-space: nowrap; }
+.shop-intro h1 { font-size: clamp(1.65rem, 5.8vw, 3.4rem); line-height: 1; }
 .shop-intro h1 i { font-style: italic; color: var(--blue-ink); }
 .shop-intro > p:not(.eyebrow), .catalog-hero > p:not(.eyebrow) { max-width: 26rem; margin-top: 1.2rem; }
 .shop-intro > p:not(.eyebrow) { margin-left: auto; margin-right: auto; max-width: 34rem; }
@@ -548,7 +548,7 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
 }
 .shop-hub {
   gap: 0.85rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   max-width: none;
   width: 100%;
 }
@@ -561,9 +561,9 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
   padding: 0.4rem 0.4rem 0.75rem;
   text-decoration: none;
 }
-.shop-hub .product-card img { aspect-ratio: 1; border-radius: 0.9rem; }
-.shop-hub .product-card h2 { font-size: 1.25rem; }
-.shop-hub .product-card p { font-size: 0.82rem; }
+.shop-hub .product-card img { aspect-ratio: 1; border-radius: 0.9rem; object-fit: cover; width: 100%; }
+.shop-hub .product-card h2 { font-size: clamp(1.2rem, 2vw, 1.65rem); line-height: 1.05; overflow-wrap: anywhere; }
+.shop-hub .product-card p { font-size: 0.82rem; line-height: 1.4; }
 .shop-hub .product-card > div { padding: 0.55rem 0.2rem 0; }
 .custom-route {
   background: var(--tan);
@@ -621,7 +621,7 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
 .preorder-preview a { color: inherit; text-decoration: none; }
 .preorder-preview img { aspect-ratio: 1; border-radius: 0.9rem; object-fit: cover; width: 100%; }
 .catalog-products {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   max-width: 1180px;
   width: auto;
   padding: 0 5vw;
@@ -639,24 +639,32 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
   border-radius: 1.5rem;
   box-shadow: var(--shadow);
   overflow: hidden;
+  min-width: 0;
   padding: 0.7rem 0.7rem 1.15rem;
 }
 .catalog-products .product-card > a { color: inherit; display: block; text-decoration: none; }
 .product-card img { aspect-ratio: 1 / 1.08; border-radius: 1.4rem; object-fit: cover; width: 100%; }
 .catalog-products .product-card img { border-radius: 1.1rem; }
 .product-card > div { padding: 1rem 0.15rem 0; }
-.catalog-products .product-card > a > div { padding: 0.95rem 0.45rem 0; }
-.catalog-products .product-card > .product-bottom { padding: 0 0.45rem; }
-.product-card h2 { font-size: clamp(1.5rem, 2vw, 2rem); margin: 0.2rem 0; }
-.product-bottom { align-items: center; display: flex; justify-content: space-between; margin-top: 1rem; }
+.catalog-products .product-card > a > div { min-width: 0; padding: 0.85rem 0.3rem 0; }
+.catalog-products .product-card > .product-bottom { align-items: stretch; flex-direction: column; gap: 0.65rem; padding: 0 0.3rem; }
+.product-card h2 { font-size: clamp(1.3rem, 2vw, 2rem); line-height: 1.05; margin: 0.2rem 0; overflow-wrap: anywhere; }
+.product-bottom { align-items: center; display: flex; justify-content: space-between; margin-top: 0.85rem; min-width: 0; }
+.product-bottom strong { overflow-wrap: anywhere; }
 .product-bottom a, .product-bottom button {
   background: none;
   border: 0;
   color: var(--blue-ink);
   display: flex;
+  align-items: center;
+  border-radius: 999px;
+  justify-content: center;
+  min-height: 2.6rem;
+  text-align: center;
+  white-space: normal;
   font-weight: 700;
-  gap: 0.25rem;
-  padding: 0;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
 }
 .empty-catalog { color: var(--muted); margin: 0 auto 4rem; max-width: 36rem; padding: 0 5vw; }
 .shop-page.is-collection .empty-catalog { padding: 0 2.5vw 4rem; }
@@ -670,9 +678,19 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
 }
 @media (min-width: 760px) {
   .catalog-products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .catalog-products .product-card > .product-bottom { align-items: center; flex-direction: row; }
 }
 @media (min-width: 1100px) {
   .shop-page.is-collection .catalog-products { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 360px) and (max-width: 759px) {
+  .catalog-products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 359px) {
+  .shop-page.is-collection .catalog-controls { align-items: stretch; flex-direction: column; }
+  .catalog-controls label { justify-content: space-between; }
+  .catalog-controls .fancy-select.is-compact { min-width: 0; width: min(65%, 14rem); }
 }
 @media (min-width: 1400px) {
   .shop-page.is-collection .catalog-products { grid-template-columns: repeat(5, minmax(0, 1fr)); }

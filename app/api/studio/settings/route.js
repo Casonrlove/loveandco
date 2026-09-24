@@ -1,5 +1,4 @@
 import { refreshPromisedDates } from '@/lib/schedule-service';
-import { revalidateTag } from 'next/cache';
 import { readJsonBody, validateSettings } from '@/lib/security';
 import { jsonError, requireAdmin } from '@/lib/require-admin';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
@@ -13,7 +12,6 @@ export async function PATCH(request) {
     if (error) return Response.json({ error }, { status: 400 });
     const settings = await saveSettings(body);
     await refreshPromisedDates();
-    revalidateTag('turnaround', 'max');
     return Response.json({ settings });
   } catch (error) {
     return jsonError(error);

@@ -1,5 +1,4 @@
 import { validateManualOrder } from '@/lib/studio-operations';
-import { revalidateTag } from 'next/cache';
 import { readJsonBody } from '@/lib/security';
 import { jsonError, requireAdmin } from '@/lib/require-admin';
 import { notifyNewOrder } from '@/lib/notifications';
@@ -34,7 +33,6 @@ export async function POST(request) {
       }],
     });
     await notifyNewOrder(order);
-    revalidateTag('turnaround', 'max');
     return Response.json({ order });
   } catch (error) {
     return jsonError(error);

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import FavoritesCarousel from './FavoritesCarousel';
 import InstagramReel from './InstagramReel';
+import StoreImage from './StoreImage';
 import { getPublicInstagram, getPublicProducts } from '@/lib/public-data';
 import {
   FAVORITE_SLUGS,
@@ -65,7 +66,7 @@ export default async function Home() {
           <div className="bundle-grid">
             {bundles.map((product) => (
               <Link className="bundle-card" href={productHref(product)} key={product.id}>
-                <img src={product.image} alt={product.name} />
+                <StoreImage src={product.image} alt={product.name} sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw" />
                 <div>
                   <h3>{product.name}</h3>
                   <p>{product.detail}</p>

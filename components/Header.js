@@ -22,12 +22,22 @@ function linkIsActive(pathname, href) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function Header({ turnaround }) {
+export default function Header() {
   const menuButton = useRef(null);
   const pathname = usePathname();
   const [cart] = useCart();
   const itemCount = cart.reduce((count, item) => count + item.quantity, 0);
   const [open, setOpen] = useState(false);
+  const [turnaroundLabel, setTurnaroundLabel] = useState('Custom-made with care');
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/turnaround', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((value) => { if (active && value?.label) setTurnaroundLabel(value.label); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -42,7 +52,7 @@ export default function Header({ turnaround }) {
 
   return (
     <header className="site-header">
-      <p className="announce">{turnaround?.label || 'Custom-made with care'} · Does not include shipping time</p>
+      <p className="announce">{turnaroundLabel} · Does not include shipping time</p>
       <div className="site-bar">
         <div className="header-left">
           <button ref={menuButton} className="menu-toggle" type="button" aria-expanded={open} aria-controls="site-nav" onClick={() => setOpen((value) => !value)}>

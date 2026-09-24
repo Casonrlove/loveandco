@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveCheckoutOrder } from '../lib/checkout-order.js';
 import { parseCart } from '../lib/cart.js';
+import { parseCustomQuantity } from '../lib/custom-order.js';
 
 const product = { id: 'hat', slug: 'hat', name: 'Hat', active: true, category: 'trucker-hats', item_price: 30, embroidery_price: 10, design_minutes: 15, stitch_minutes: 30 };
 
@@ -21,12 +22,23 @@ test('unknown and hidden products cannot be purchased', () => {
 });
 
 test('custom requests stay unpriced and cannot inject production minutes or proof flags', () => {
-  const result = resolveCheckoutOrder([{ id: 'custom', name: 'Custom request', isCustom: true, quantity: 1, stitch_minutes: 999999, embroideryPrice: 9999, custom_details: { type: 'home', details: 'Blue napkins', paid: true } }], []);
+  const result = resolveCheckoutOrder([{ id: 'custom', name: 'Custom request', isCustom: true, quantity: 12, stitch_minutes: 999999, embroideryPrice: 9999, custom_details: { type: 'home', details: 'Blue napkins', paid: true, quantity: '1' } }], []);
   assert.equal(result.subtotal, 0);
   assert.equal(result.items[0].stitch_minutes, 0);
   assert.equal(result.items[0].embroidery_price, 0);
+  assert.equal(result.items[0].quantity, 12);
+  assert.equal(result.items[0].custom_details.quantity, '12');
   assert.equal(result.items[0].custom_details.details, 'Blue napkins');
   assert.equal(result.items[0].custom_details.paid, undefined);
+});
+
+test('custom quantities are whole numbers from 1 through 500 throughout checkout', () => {
+  assert.equal(parseCustomQuantity('1'), 1);
+  assert.equal(parseCustomQuantity('500'), 500);
+  for (const value of ['0', '-1', '501', '1.5', '']) assert.equal(parseCustomQuantity(value), null);
+  for (const quantity of [0, 501, 2.5]) {
+    assert.throws(() => resolveCheckoutOrder([{ id: 'custom', isCustom: true, quantity }], []), { status: 400 });
+  }
 });
 
 test('cart hydration rejects malformed storage without breaking the page', () => {
