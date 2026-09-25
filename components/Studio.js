@@ -113,6 +113,12 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
 
   const setDaysOff = (daysOff) => persistSettings({ daysOff });
 
+  const finishOrder = (order) => {
+    const unpaid = !['paid', 'refunded'].includes(order.payment_status);
+    if (!window.confirm(`Mark ${order.name}'s order as finished${unpaid ? ' and paid' : ''}? This skips the remaining production steps.`)) return;
+    patchOrder(order.id, { ...(unpaid ? { payment_status: 'paid' } : {}), fulfillment_status: 'complete' });
+  };
+
   const patchOrder = async (id, patch) => {
     setBusy(true);
     setMessage('');
@@ -316,6 +322,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                       {order.payment_status !== 'paid' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { payment_status: 'paid', fulfillment_status: 'queued' })}>Paid</button>}
                       {order.payment_status === 'paid' && order.fulfillment_status === 'queued' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { fulfillment_status: 'started' })}>Start</button>}
                       {['queued', 'started'].includes(order.fulfillment_status) && <button type="button" onClick={() => openOrder(order.id)}>Shipping details</button>}
+                      {!['complete', 'cancelled'].includes(order.fulfillment_status) && <button type="button" disabled={busy} onClick={() => finishOrder(order)}>Mark finished</button>}
                       <button type="button" onClick={() => openOrder(order.id)}>Open</button>
                     </div>
                   </article>

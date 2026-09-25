@@ -9,11 +9,11 @@ import { getOrder, getOrderNotes, persistenceMode, saveStudioOrder } from '@/lib
 import { hasSupabaseConfig } from '@/lib/supabase/config';
 
 function customerMessage(order, patch) {
+  if (patch.fulfillment_status === 'complete') return 'Your order is complete. Thank you for supporting Love & Co.';
   if (patch.payment_status === 'requested') return 'I’ve sent your Venmo request. Production begins after payment is received.';
   if (patch.payment_status === 'paid') return `Payment is confirmed. Your project is on the production calendar${order.promised_on ? ` for completion around ${order.promised_on}` : ''}.`;
   if (patch.fulfillment_status === 'started') return 'I’ve started your order.';
   if (patch.fulfillment_status === 'shipped') return order.tracking_number ? `Your order has shipped. Tracking: ${order.tracking_number}` : 'Your order has shipped.';
-  if (patch.fulfillment_status === 'complete') return 'Your order is complete. Thank you for supporting Love & Co.';
   return '';
 }
 
