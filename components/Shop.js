@@ -172,7 +172,7 @@ function ShopContent({ category, productKey, products }) {
     const bundle = basePrice(product);
     return (
       <div className="addon-picker">
-        <p className="helper">Add extra embroidered pieces to this bundle. Outfits $22 each, burp cloths $12, bibs $12, and paci clips $14.</p>
+        <p className="helper">Add extra embroidered pieces to this bundle. Outfits $22 each, burp cloths $12, bibs $12, and paci clips $6.</p>
         <div className="addon-picker-grid">
           {BUNDLE_ADDONS.map((addon) => (
             <label key={addon.id}>{addon.label}

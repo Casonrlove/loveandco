@@ -468,7 +468,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                   options={CATEGORIES.slice().sort((left, right) => left.name.localeCompare(right.name)).map((category) => ({ value: category.id, label: category.name }))}
                 />
               </label>
-              {productDraft.category === 'baby-bundles' && <p className="helper">Shoppers pick The Keepsake, Signature, or Heirloom Bundle. Customization is included. They can add extra outfits ($22), burp cloths ($12), bibs ($12), and paci clips ($14).</p>}
+              {productDraft.category === 'baby-bundles' && <p className="helper">Shoppers pick The Keepsake, Signature, or Heirloom Bundle. Customization is included. They can add extra outfits ($22), burp cloths ($12), bibs ($12), and paci clips ($6).</p>}
               <div className="form-row">
                 <label>Item price<input type="number" min="0" step="0.01" value={productDraft.item_price} onChange={(event) => setProductDraft({ ...productDraft, item_price: event.target.value })} /></label>
                 <label>Design fee<input type="number" min="0" step="0.01" value={productDraft.embroidery_price} onChange={(event) => setProductDraft({ ...productDraft, embroidery_price: event.target.value })} /></label>
