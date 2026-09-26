@@ -47,3 +47,9 @@ cross join (values('checkout_requests'),('request_limits'),('order_activity'),('
 select role_name, signature, has_function_privilege(role_name,'public.'||signature,'EXECUTE') as can_execute
 from (values('anon'),('authenticated')) roles(role_name)
 cross join (values('create_checkout_once(jsonb,jsonb,uuid,text)'),('consume_request_limit(text,integer,integer)'),('studio_edit_order(uuid,jsonb,text)'),('publish_order_proof(uuid,uuid,text,text,text)'),('respond_order_proof(uuid,text,text,text)'),('adjust_inventory(uuid,integer,text,text)')) functions(signature);
+
+-- Explicit grants: should return no rows, so new public tables get no automatic Data API access.
+select pg_get_userbyid(d.defaclrole) as owner, d.defaclobjtype as object_type, d.defaclacl
+from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace
+where n.nspname = 'public' and d.defaclrole = 'postgres'::regrole and d.defaclobjtype in ('r', 'S')
+  and d.defaclacl::text ~ '(anon|authenticated|service_role)=';
