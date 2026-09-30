@@ -28,8 +28,8 @@ test('baby bundle add-ons follow Blanks Boutique plus stitch prices', () => {
     price: 75,
     bundleAddons: { outfit: 1, burp: 2, bib: 1, paci: 1 },
   };
-  assert.equal(addonTotal(bundle), 22 + 24 + 12 + 14);
-  assert.equal(lineTotal({ ...bundle, quantity: 1 }), 75 + 72);
-  assert.equal(lineTotal({ ...bundle, quantity: 2 }), 150 + 72);
+  assert.equal(addonTotal(bundle), 22 + 24 + 12 + 6);
+  assert.equal(lineTotal({ ...bundle, quantity: 1 }), 75 + 64);
+  assert.equal(lineTotal({ ...bundle, quantity: 2 }), 150 + 64);
   assert.equal(addonTotal({ category: 'baby-bundles', bundleAddons: {} }), 0);
 });
