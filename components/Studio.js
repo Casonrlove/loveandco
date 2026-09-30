@@ -2,7 +2,7 @@
 
 import StoreImage from './StoreImage';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar3, Check2, Clock, Plus, Search, Trash3 } from 'react-bootstrap-icons';
 import { CATEGORIES, PRODUCT_IMAGES, slugify } from '@/lib/catalog';
 import StudioPhotos from './StudioPhotos';
@@ -91,7 +91,12 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   const currentPage = Math.min(page, Math.max(0, Math.ceil(visibleOrders.length / 25) - 1));
   const displayedOrders = visibleOrders.slice(currentPage * 25, currentPage * 25 + 25);
 
+  // Each save sends a full settings snapshot, so overlapping saves could land
+  // out of order and drop a change. Allow one at a time.
+  const savingSettings = useRef(false);
   const persistSettings = async (patch) => {
+    if (savingSettings.current) { setMessage('Still saving availability. Try again in a moment.'); return; }
+    savingSettings.current = true;
     const next = typeof patch === 'function' ? patch(settings) : { ...settings, ...patch };
     setSettings(next);
     setBusy(true);
@@ -101,7 +106,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       if (!response.ok) throw new Error(result.error || 'Could not save availability.');
       setSettings(result.settings); setMessage('Availability saved.');
     } catch (error) { setSettings(settings); setMessage(error.message); }
-    finally { setBusy(false); }
+    finally { savingSettings.current = false; setBusy(false); }
   };
 
   const toggleDayOff = (date) => persistSettings((current) => ({
@@ -314,7 +319,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                     </div>
                     <div className="completion">
                       {order.fulfillment_status === 'complete' ? <><Check2 /><span>Complete</span></> : (
-                        <><span>Projected finish</span><strong>{result?.completionDate ? formatDate(result.completionDate) : order.payment_status === 'paid' ? 'Set minutes' : 'After payment'}</strong></>
+                        <><span>Projected finish</span><strong>{result?.completionDate ? formatDate(result.completionDate) : result?.unassigned > 0 ? 'Beyond schedule' : order.payment_status === 'paid' ? 'Set minutes' : 'After payment'}</strong></>
                       )}
                     </div>
                     <div className="order-actions">
@@ -407,19 +412,24 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
               disabled={busy || !instagramToken.trim()}
               onClick={async () => {
                 setBusy(true);
-                const response = await fetch('/api/studio/instagram', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token: instagramToken }),
-                });
-                setBusy(false);
-                if (!response.ok) {
-                  setMessage('Could not save Instagram token.');
-                  return;
+                try {
+                  const response = await fetch('/api/studio/instagram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: instagramToken }),
+                  });
+                  if (!response.ok) {
+                    setMessage('Could not save Instagram token.');
+                    return;
+                  }
+                  setInstagramOn(true);
+                  setInstagramToken('');
+                  setMessage('Instagram connected. Home will show live posts.');
+                } catch {
+                  setMessage('Could not save Instagram token. Check your connection and try again.');
+                } finally {
+                  setBusy(false);
                 }
-                setInstagramOn(true);
-                setInstagramToken('');
-                setMessage('Instagram connected. Home will show live posts.');
               }}
             >
               Save Instagram token

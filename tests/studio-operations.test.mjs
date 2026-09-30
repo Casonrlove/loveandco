@@ -26,3 +26,6 @@ test('Catalog and manual orders reject unsafe or invalid inputs', () => {
   validateManualOrder({ name: 'A', email: 'a@example.com', item: 'Hat', price: 10, design_minutes: 0, stitch_minutes: 0 });
   assert.throws(() => validateManualOrder({ name: 'A', email: 'bad', item: 'Hat' }));
 });
+test('Studio order totals cannot be set apart from their line items', () => {
+  assert.throws(() => validateOrderPatch({ subtotal: 1 }, current), { status: 400 });
+});

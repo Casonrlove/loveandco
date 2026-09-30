@@ -56,28 +56,28 @@ export default function StudioOrderEditor({ order, onSaved, onDirty }) {
     <div className="order-actions no-print"><button type="button" onClick={() => window.print()}>Print order sheet</button><a className="soft-button" href={`mailto:${encodeURIComponent(order.email)}?subject=${encodeURIComponent('Your Love & Co. order')}`}>Draft customer email</a><a className="soft-button" href={`mailto:${encodeURIComponent(order.email)}?subject=${encodeURIComponent('Your Love & Co. quote')}&body=${encodeURIComponent(quoteText)}`}>Draft quote email</a></div>
     <p className="helper no-print">Status changes may email the customer. Payment statuses record payments handled separately in Venmo.</p>
     <form onSubmit={save} className="order-form">
-      <fieldset><legend>Customer & shipping</legend><div className="form-row">
+      <fieldset disabled={busy}><legend>Customer & shipping</legend><div className="form-row">
         <label>Customer name<input required maxLength={500} value={draft.name} onChange={(e) => field('name', e.target.value)} /></label>
         <label>Phone<input type="tel" value={draft.phone || ''} onChange={(e) => field('phone', e.target.value)} /></label>
       </div><label>Venmo username<input value={draft.venmo_username || ''} onChange={(e) => field('venmo_username', e.target.value)} /></label>
       <label>Street address<input autoComplete="shipping address-line1" value={draft.address_line || ''} onChange={(e) => field('address_line', e.target.value)} /></label>
       <label>Apartment / unit<input autoComplete="shipping address-line2" value={draft.address_line2 || ''} onChange={(e) => field('address_line2', e.target.value)} /></label>
       <div className="form-row">{[['city', 'City'], ['region', 'State'], ['postal_code', 'ZIP code']].map(([key, text]) => <label key={key}>{text}<input value={draft[key] || ''} onChange={(e) => field(key, e.target.value)} /></label>)}</div></fieldset>
-      <fieldset><legend>Items & quote</legend><p className="helper">Prices and minutes are per piece. Saving recalculates the order total.</p>
+      <fieldset disabled={busy}><legend>Items & quote</legend><p className="helper">Prices and minutes are per piece. Saving recalculates the order total.</p>
       {draft.items.map((item) => <article className="studio-line-item" key={item.id}><h3>{item.name}</h3>
         <dl className="design-proof">{proofRows(item.custom_details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}</dd></div>)}</dl>
         {item.personalization && <p>{item.personalization}</p>}
         <div className="form-row">{[['quantity', 'Quantity', 1, 500, 1], ['item_price', 'Item price ($)', 0, 100000, 0.01], ['embroidery_price', 'Design fee ($)', 0, 100000, 0.01], ['design_minutes', 'Design minutes', 0, 100000, 1], ['stitch_minutes', 'Stitch minutes', 0, 100000, 1]].map(([key, text, min, max, step]) => <label key={key}>{text}<input type="number" required min={min} max={max} step={step} value={item[key] ?? 0} onChange={(e) => itemField(item.id, key, e.target.value)} /></label>)}</div>
       </article>)}<p className="studio-quote-total">Order total <strong>{money(total)}</strong></p></fieldset>
-      <fieldset><legend>Fulfillment</legend><div className="form-row">
+      <fieldset disabled={busy}><legend>Fulfillment</legend><div className="form-row">
         <label>Payment<select value={draft.payment_status} onChange={(e) => field('payment_status', e.target.value)}>{paymentStatuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
         <label>Order status<select value={draft.fulfillment_status} onChange={(e) => field('fulfillment_status', e.target.value)}>{fulfillmentStatuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
         <label>Priority<select value={draft.priority} onChange={(e) => field('priority', e.target.value)}><option value="standard">Standard</option><option value="rush">Rush</option></select></label>
       </div><div className="form-row"><label>Delivery method<select value={draft.delivery_method || 'shipping'} onChange={(e) => field('delivery_method',e.target.value)}><option value="shipping">Shipping</option><option value="pickup">Local pickup</option></select></label><label>Carrier<select value={draft.carrier || ''} onChange={(e) => field('carrier',e.target.value)}><option value="">Choose a carrier</option>{['usps','ups','fedex','dhl'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}</select></label></div>
       {draft.delivery_method === 'pickup' && <label>Pickup instructions<textarea maxLength={500} rows={3} value={draft.pickup_instructions || ''} onChange={(e) => field('pickup_instructions',e.target.value)} /></label>}
       <label>Tracking number<input value={draft.tracking_number || ''} onChange={(e) => field('tracking_number', e.target.value)} /></label>{trackingUrl(draft.carrier, draft.tracking_number) && <a href={trackingUrl(draft.carrier, draft.tracking_number)} target="_blank" rel="noopener noreferrer">Open carrier tracking</a>}</fieldset>
-      <label>Customer-facing notes<textarea maxLength={10000} rows={3} value={draft.customer_notes || ''} onChange={(e) => field('customer_notes', e.target.value)} /></label>
-      <label className="no-print">Private staff notes<textarea disabled={!notesReady} maxLength={10000} rows={4} value={staffNotes} onChange={(e) => { setDirty(true); setStaffNotes(e.target.value); }} /><small>Only visible in Studio. Excluded from the customer account, exports, and printed order sheet.</small></label>
+      <label>Customer-facing notes<textarea disabled={busy} maxLength={10000} rows={3} value={draft.customer_notes || ''} onChange={(e) => field('customer_notes', e.target.value)} /></label>
+      <label className="no-print">Private staff notes<textarea disabled={!notesReady || busy}maxLength={10000} rows={4} value={staffNotes} onChange={(e) => { setDirty(true); setStaffNotes(e.target.value); }} /><small>Only visible in Studio. Excluded from the customer account, exports, and printed order sheet.</small></label>
       <div className="studio-save-bar no-print"><span>{dirty ? 'Unsaved changes' : 'Up to date'}</span><button type="submit" className="studio-primary" disabled={busy}>{busy ? 'Saving…' : 'Save order'}</button></div>
       {message && <p role="status" className="studio-feedback no-print">{message}</p>}
     </form>
