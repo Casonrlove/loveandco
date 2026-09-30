@@ -100,3 +100,42 @@ Post-migration checks:
 - Supabase security advisor reports one warning: leaked-password protection is disabled. No other WARN/ERROR security findings were returned.
 
 Website deployment succeeded; public routes and unauthenticated Studio/API guards passed live checks. Live account/checkout/photo workflows and Vercel settings remain unverified. Historical local-only findings above should be read in conjunction with this live verification.
+
+## Follow-up audit — September 30, 2026
+
+Seven read-only Codex CLI jobs (`gpt-6.1-sol`, medium reasoning) reviewed Studio APIs, checkout/orders, per-user resources and public proxies, database migrations, platform config, storefront UI, and Studio UI, prioritising changes since September 6. Each lead was checked against the code before any change. All verification was offline: hosted grants, Storage, Vercel settings, and live workflows remain unverified, as above.
+
+### Fixed
+
+| Severity | Finding | Change |
+| --- | --- | --- |
+| Medium | `/api/turnaround` rescanned every active paid order on each storefront visit (Header and TurnaroundNote both call it) after its cache was removed on September 24. | Result cached for 60 seconds, keyed by shop date so the day-rollover fix still holds (`lib/schedule-service.js`). |
+| Medium | Choosing local pickup with "Save this address" checked blanked the signed-in customer's saved address. | Checkbox only renders for shipping; server saves addresses only for shipping orders. |
+| Medium | Checkout replay returned the order's current details, including later claims and Studio corrections, to anyone holding the original body and key. | Replays return only the order ID; the checkout client never read more. |
+| Medium | Scheduler reported a finish date for orders that ran past its 180-session horizon, which was shown publicly and saved as `promised_on`. | `completionDate` is null while any work is unallocated; Studio shows "Beyond schedule". |
+| Medium | Shop bag plus button allowed quantity 501, which the cart parser then silently dropped. | Plus disabled at 500, matching checkout and the custom bag. |
+| Medium | Shop and custom bag minus buttons went below the 10-piece napkin minimum, which checkout then rejected. | Both drawers apply `NAPKIN_MIN_QTY` like checkout. |
+| Medium | Custom-page bag subtotal omitted baby bundle add-ons and one-time design fees. | Uses shared `cartTotal`. |
+| Medium | Design details left in a cart after unchecking the paid design option were saved without the design fee. | Personalization is saved only when the design option is charged. |
+| Medium | Studio "Save Instagram token" left all busy-gated Studio controls disabled after a network failure. | `try/catch/finally` with an error message. |
+| Medium | Order editor fields stayed editable during save; edits made mid-save were silently replaced by the response. | Editor fields are disabled while saving. |
+| Medium | Overlapping calendar availability saves could land out of order and drop a day off. | One settings save at a time; extra clicks show "Still saving". |
+| Low | Studio order PATCH accepted a standalone `subtotal` that disagreed with line items. | Rejected unless line items are sent; total is always derived. |
+| Low | Product photos blocked vertical page scrolling when a swipe started on the photo. | `touch-action: pan-x pan-y pinch-zoom`. |
+| — | `tests/catalog-pricing.test.mjs` still expected the $14 paci clip price. | Updated to $6. Regression tests added for the scheduler, subtotal, and personalization changes. |
+
+### Needs owner decision
+
+- **Rate limiter ordering (Medium).** `protectPublicRequest` (`lib/operations-store.js`) consumes the shared daily budget before the per-client budget, so requests a client is already rate-limited for still count against everyone's daily allowance. Contact, address, and proof routes also consume it before basic input validation. One IP can exhaust the 300/day contact budget with 300 quick requests, blocking the contact form for everyone for up to a day. Proposed fix: check per-client first, and validate/honeypot before the limiter. Even then one IP at 5 per 10 minutes can reach the 300/day ceiling in about 10 hours, so the global cap remains a cost ceiling rather than abuse protection. Not applied in this pass because it reorders security controls; confirm before changing.
+- **Payment before production.** Studio can set an unpaid order to started/complete; SQL checks proof approval but not payment. "Mark finished … and paid" and manual status edits rely on this, so it is policy, not a defect.
+- **Bundle add-on production time.** Extra outfits, bibs, burp cloths, and paci clips are saved with 0 design/stitch minutes, so they add no scheduled workload. The shop needs per-add-on minutes to fix this.
+
+### Deferred
+
+- Stale "Mark finished" after a cancellation or refund in another tab, and settings saves in general, need an order/settings revision column checked inside `studio_edit_order`: a live migration plus RPC change.
+- Calendar save errors are announced outside the dialog (inert while open); day buttons lack full-date labels and `aria-pressed`.
+- Website tab edits are lost on tab switch without an unsaved-changes warning.
+
+### Not reproduced / clean
+
+Database RLS, grants, RPC execution, and the September 26 default-privilege migration; Studio admin gating, allowlists, and photo upload handling; proof token checks and photo path handling; auth redirects; headers, `server-only` boundaries, and public caches were all reported clean and are consistent with the code reviewed.
