@@ -109,6 +109,7 @@ Seven read-only Codex CLI jobs (`gpt-6.1-sol`, medium reasoning) reviewed Studio
 
 | Severity | Finding | Change |
 | --- | --- | --- |
+| Medium | Public rate limiting spent the shared daily budget before the per-client budget, and contact and address checks ran it before basic validation. One IP could use up the 300/day contact budget with 300 quick requests and block the form for everyone for up to a day. | Per-client budget is checked first (`lib/operations-store.js`); contact validates and applies its spam trap, and address suggestions reject short queries, before the limiter runs. Applied with owner approval. One IP at 5 per 10 minutes can still reach the 300/day contact ceiling in about 10 hours; the global cap is a cost ceiling, not abuse protection. Not unit-tested: the module imports `server-only`. |
 | Medium | `/api/turnaround` rescanned every active paid order on each storefront visit (Header and TurnaroundNote both call it) after its cache was removed on September 24. | Result cached for 60 seconds, keyed by shop date so the day-rollover fix still holds (`lib/schedule-service.js`). |
 | Medium | Choosing local pickup with "Save this address" checked blanked the signed-in customer's saved address. | Checkbox only renders for shipping; server saves addresses only for shipping orders. |
 | Medium | Checkout replay returned the order's current details, including later claims and Studio corrections, to anyone holding the original body and key. | Replays return only the order ID; the checkout client never read more. |
@@ -126,7 +127,6 @@ Seven read-only Codex CLI jobs (`gpt-6.1-sol`, medium reasoning) reviewed Studio
 
 ### Needs owner decision
 
-- **Rate limiter ordering (Medium).** `protectPublicRequest` (`lib/operations-store.js`) consumes the shared daily budget before the per-client budget, so requests a client is already rate-limited for still count against everyone's daily allowance. Contact, address, and proof routes also consume it before basic input validation. One IP can exhaust the 300/day contact budget with 300 quick requests, blocking the contact form for everyone for up to a day. Proposed fix: check per-client first, and validate/honeypot before the limiter. Even then one IP at 5 per 10 minutes can reach the 300/day ceiling in about 10 hours, so the global cap remains a cost ceiling rather than abuse protection. Not applied in this pass because it reorders security controls; confirm before changing.
 - **Payment before production.** Studio can set an unpaid order to started/complete; SQL checks proof approval but not payment. "Mark finished … and paid" and manual status edits rely on this, so it is policy, not a defect.
 - **Bundle add-on production time.** Extra outfits, bibs, burp cloths, and paci clips are saved with 0 design/stitch minutes, so they add no scheduled workload. The shop needs per-add-on minutes to fix this.
 
