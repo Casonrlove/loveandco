@@ -217,12 +217,12 @@ export default function Checkout({ user, website }) {
             <p className="eyebrow">SHIP TO</p>
             <label>Delivery method<select name="delivery_method" value={delivery} onChange={(e) => setDelivery(e.target.value)}><option value="shipping">Shipping</option>{website?.info?.pickupEnabled && <option value="pickup">Local pickup</option>}</select></label>
             {delivery === 'shipping' ? <AddressFields defaultAddress={user} /> : <p>{website?.info?.pickupInstructions}</p>}
-            {user ? (
+            {user ? (delivery === 'shipping' && (
               <label className="save-address">
                 <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
                 <span>Save this address to my account</span>
               </label>
-            ) : (
+            )) : (
               <p className="helper">Want this saved for next time? <Link href="/login?next=/checkout">Sign in</Link> first.</p>
             )}
             <label>Anything else?<textarea name="customer_notes" placeholder="Gift note, drop-off, or other details" /></label>

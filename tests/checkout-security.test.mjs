@@ -45,3 +45,12 @@ test('cart hydration rejects malformed storage without breaking the page', () =>
   for (const value of ['null', '{}', 'bad', '[null]', '[{"id":"x","quantity":-1}]']) assert.deepEqual(parseCart(value), []);
   assert.equal(parseCart(JSON.stringify([{ id: 'hat', name: 'Hat', quantity: 2 }])).length, 1);
 });
+
+test('design details are dropped when the paid design option is not chosen', () => {
+  const unchecked = resolveCheckoutOrder([{ id: 'hat', quantity: 1, wantsDesign: false, threadColor: 'royal-blue', extraNotes: 'Stitch a rainbow' }], [product]);
+  assert.equal(unchecked.items[0].embroidery_price, 0);
+  assert.equal(unchecked.items[0].personalization, '');
+  const chosen = resolveCheckoutOrder([{ id: 'hat', quantity: 1, wantsDesign: true, threadColor: 'royal-blue', extraNotes: 'Stitch a rainbow' }], [product]);
+  assert.equal(chosen.items[0].embroidery_price, 10);
+  assert.notEqual(chosen.items[0].personalization, '');
+});

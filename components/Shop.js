@@ -437,9 +437,9 @@ function ShopContent({ category, productKey, products }) {
                     </div>
                     <div className="cart-controls">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity === 1 ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
+                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1) ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
+                        <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
                       <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
                     </div>

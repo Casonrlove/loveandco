@@ -52,3 +52,13 @@ test('all work days off or invalid availability cannot spin the CPU indefinitely
     { workDays: [1], minutesPerSession: 0, daysOff: [] },
   ]) assert.deepEqual(createSchedule([], settings).sessions, []);
 });
+
+test('work past the scheduling horizon gets no promised finish date', () => {
+  const schedule = createSchedule([{
+    id: 'huge', customer: 'Big order', designMinutes: 0, stitchMinutes: 1000000,
+    priority: 'standard', createdAt: '2026-01-01', status: 'queued',
+  }], defaultSettings);
+  assert.ok(schedule.results.huge.unassigned > 0);
+  assert.equal(schedule.results.huge.completionDate, null);
+  assert.equal(turnaround(schedule).label, 'New orders are being reviewed');
+});

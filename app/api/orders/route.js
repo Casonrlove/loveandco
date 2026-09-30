@@ -18,7 +18,9 @@ export async function POST(request) {
     const profile = await getSessionProfile();
     const fingerprint = checkoutFingerprint(body, profile?.id || null);
     const replay = await checkoutReplay(key, fingerprint);
-    if (replay) return Response.json({ order: replay, replayed: true });
+    // A replay only confirms the submission; the order may since have been
+    // claimed or corrected, so its current details are not returned.
+    if (replay) return Response.json({ order: { id: replay.id }, replayed: true });
     const website = await getWebsiteSettings();
     if (!website.ordersOpen) return Response.json({ error: website.pausedMessage }, { status: 409 });
     const inputError = validateSubmission(body, { order: true });
@@ -56,7 +58,8 @@ export async function POST(request) {
       subtotal,
       items: resolved,
     }, { key, fingerprint });
-    const saveAddress = body.save_address === true || body.save_address === '1';
+    // Pickup orders carry no address, so saving one would blank the profile's.
+    const saveAddress = deliveryMethod === 'shipping' && (body.save_address === true || body.save_address === '1');
     const saveVenmo = body.save_venmo === true || body.save_venmo === '1';
     if (profile && hasSupabaseConfig() && (saveAddress || saveVenmo)) {
       const supabase = await createClient();

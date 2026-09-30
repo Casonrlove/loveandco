@@ -5,7 +5,7 @@ import { useModalFocus } from '@/lib/use-modal-focus';
 import { useMemo, useState } from 'react';
 import { Dash, Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
-import { CART_EVENT, CART_KEY, CUSTOM_TYPES, basePrice, designFee, itemPrice } from '@/lib/catalog';
+import { CART_EVENT, CART_KEY, CUSTOM_TYPES, NAPKIN_MIN_QTY, basePrice, cartTotal, designFee, isTieredNapkins } from '@/lib/catalog';
 import { useCart } from '@/lib/use-cart';
 import { parseCustomQuantity } from '@/lib/custom-order';
 import FancySelect from './FancySelect';
@@ -30,7 +30,7 @@ export default function CustomPage() {
 
   const bag = cart;
   const hasCustomItem = bag.some((item) => item.isCustom);
-  const total = useMemo(() => bag.reduce((sum, item) => sum + itemPrice(item) * item.quantity, 0), [bag]);
+  const total = useMemo(() => cartTotal(bag), [bag]);
   const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
 
@@ -117,7 +117,7 @@ export default function CustomPage() {
                     </div>
                     <div className="cart-controls">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity === 1 ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
+                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1) ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
                         <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
