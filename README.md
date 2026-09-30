@@ -46,7 +46,7 @@ Checkout is review → Venmo → produce. Production minutes only count after an
 
 ## Public caching and hosting usage
 
-Marketing and shop pages use incremental static regeneration. The catalog refreshes after 15 minutes and the Instagram feed after 1 hour. Turnaround dates load from an uncached endpoint at visit time, so cached page HTML cannot show an expired estimate. Studio changes invalidate the relevant caches. Account, checkout, auth, and Studio requests stay dynamic; no private data is put in shared caches. Public pages do not run the auth proxy.
+Marketing and shop pages use incremental static regeneration. The catalog refreshes after 15 minutes and the Instagram feed after 1 hour. Turnaround dates load from an endpoint at visit time, so cached page HTML cannot show an expired estimate; the endpoint reuses its result for up to one minute within the same shop date. Studio changes invalidate the relevant caches. Account, checkout, auth, and Studio requests stay dynamic; no private data is put in shared caches. Public pages do not run the auth proxy.
 
 `predev` and `prebuild` generate `public/media` and `lib/generated-images.json` from the original photos. These generated artifacts are ignored by Git. Use the npm scripts rather than calling `next build` directly. Images have content-hashed URLs, responsive widths, and long cache lifetimes; no Vercel image transformations are needed. An unreadable, unused original (`Baby_5.png`, actually HEIC) is skipped with a warning.
 
