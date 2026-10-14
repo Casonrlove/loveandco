@@ -7,14 +7,14 @@ import { hasSupabaseConfig } from '@/lib/supabase/config';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Studio · Love & Co. Embroidery' };
+export const metadata = { title: 'Studio', robots: { index: false, follow: false } };
 
 export default async function StudioPage({ searchParams }) {
   const params = await searchParams;
   const scalar = (value) => typeof value === 'string' ? value : '';
   const view = { tab: scalar(params.tab), filter: scalar(params.filter), q: scalar(params.q), order: scalar(params.order) };
   if (!['board', 'orders', 'products', 'customers', 'inbox', 'website', 'add', 'settings', 'inventory'].includes(view.tab)) view.tab = 'board';
-  if (!['active', 'review', 'unpaid', 'minutes', 'queued', 'started', 'shipped', 'complete', 'cancelled', 'all'].includes(view.filter)) view.filter = 'active';
+  if (!['active', 'review', 'unpaid', 'minutes', 'production', 'overdue', 'queued', 'started', 'shipped', 'complete', 'cancelled', 'all'].includes(view.filter)) view.filter = 'active';
   const mode = persistenceMode();
   const profile = await getSessionProfile();
   if (hasSupabaseConfig() || mode !== 'local') {

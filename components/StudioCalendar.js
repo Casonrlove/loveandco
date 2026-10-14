@@ -92,6 +92,7 @@ export default function StudioCalendar({
   };
 
   const clearFutureOff = () => {
+    if (!window.confirm('Restore every future night off?')) return;
     onSetDaysOff((settings.daysOff || []).filter((date) => date < today));
   };
 
@@ -141,7 +142,6 @@ export default function StudioCalendar({
                 key={key}
                 className={`cal-day${outside ? ' is-out' : ''}${key === today ? ' is-today' : ''}${key === selected ? ' is-selected' : ''}${work ? ' is-work' : ''}${off ? ' is-off' : ''}${jobs.length ? ' has-jobs' : ''}`}
                 onClick={(event) => handleDay(key, event)}
-                onDoubleClick={() => onToggleDayOff(key)}
               >
                 <span className="cal-num">{date.getDate()}</span>
                 {work && <span className="cal-meter"><b style={{ width: `${fill}%` }} /></span>}

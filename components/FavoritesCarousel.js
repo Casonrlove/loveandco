@@ -24,7 +24,7 @@ export default function FavoritesCarousel({ items }) {
         <div className="favorites-track">
           {visible.map((item) => (
             <Link className="favorites-slide" href={item.href} key={item.href}>
-              <StoreImage src={item.image} alt={item.name} width="600" height="600" loading="lazy" />
+              <StoreImage src={item.image} alt={item.name} width="600" height="600" loading="lazy" sizes="(min-width: 640px) 30vw, 100vw" />
               <div className="favorites-slide-copy">
                 <h3>{item.name}</h3>
                 <span>{item.price}</span>

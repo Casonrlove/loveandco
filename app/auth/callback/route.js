@@ -24,6 +24,7 @@ export async function GET(request) {
       if (user?.email && user.email_confirmed_at) await claimOrdersForUser(user.id, user.email).catch(() => {});
       return NextResponse.redirect(`${origin}${next}`);
     }
+    if (next === '/update-password') return NextResponse.redirect(`${origin}/forgot-password?error=expired`);
     return NextResponse.redirect(`${origin}/login?error=auth_retry`);
   }
   return NextResponse.redirect(`${origin}/login?error=auth_callback`);

@@ -16,9 +16,9 @@ function GoogleMark() {
   );
 }
 
-export default function AuthForm({ configured, initialError = '', nextPath = '/account' }) {
+export default function AuthForm({ configured, initialError = '', nextPath = '/account', initialMode = 'signin' }) {
   const router = useRouter();
-  const [mode, setMode] = useState('signin');
+  const [mode, setMode] = useState(initialMode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +26,14 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
   const [googlePending, setGooglePending] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState(initialError);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError('');
+    setMessage('');
+    setNeedsConfirm(false);
+  };
 
   const signInWithGoogle = async () => {
     setError('');
@@ -68,14 +76,18 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
         },
       });
       if (authError) setError(authError.message);
+      else if (data.user && data.user.identities?.length === 0) setError('An account already exists for this email. Sign in or reset your password.');
       else if (data.session) {
         router.replace(nextPath);
         router.refresh();
       } else setMessage('Check your email to confirm your account.');
     } else {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      if (authError) setError(authError.message);
-      else {
+      if (authError) {
+        const friendly = { 'Invalid login credentials': 'That email and password do not match.', 'Email not confirmed': 'Confirm your email first. Use the button below to resend the link.' };
+        setError(friendly[authError.message] || authError.message);
+        setNeedsConfirm(authError.message === 'Email not confirmed');
+      } else {
         router.replace(nextPath);
         router.refresh();
       }
@@ -84,13 +96,13 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
   };
 
   return (
-    <form onSubmit={submit} className="auth-card">
+    <form onSubmit={submit} onInput={() => message && setMessage('')} className="auth-card">
       <p className="eyebrow">YOUR ACCOUNT</p>
       <h1>{mode === 'signin' ? 'Welcome back.' : 'Save your orders.'}</h1>
       <p>{mode === 'signin' ? 'Sign in to see order status and tracking.' : 'Create an account with the same email you use at checkout.'}</p>
-      <div className="studio-tabs compact">
-        <button type="button" className={mode === 'signin' ? 'active' : ''} onClick={() => setMode('signin')}>Sign in</button>
-        <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>Create account</button>
+      <div className="studio-tabs">
+        <button type="button" aria-pressed={mode === 'signin'} className={mode === 'signin' ? 'active' : ''} onClick={() => switchMode('signin')}>Sign in</button>
+        <button type="button" aria-pressed={mode === 'signup'} className={mode === 'signup' ? 'active' : ''} onClick={() => switchMode('signup')}>Create account</button>
       </div>
       <button type="button" className="google-button" onClick={signInWithGoogle} disabled={pending || googlePending || !configured}>
         <GoogleMark />
@@ -103,8 +115,16 @@ export default function AuthForm({ configured, initialError = '', nextPath = '/a
       {mode === 'signin' && <p className="helper"><Link href="/forgot-password">Forgot password?</Link></p>}
       {!configured && <p className="helper">Sign-in is temporarily unavailable. You can still browse the shop.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
+      {needsConfirm && <button type="button" className="ghost-button" disabled={pending} onClick={async () => {
+        setPending(true);
+        const { error: resendError } = await createClient().auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}` } });
+        setError(resendError ? resendError.message : '');
+        setMessage(resendError ? '' : 'Confirmation email sent. Check your inbox.');
+        setNeedsConfirm(false);
+        setPending(false);
+      }}>Resend confirmation email</button>}
       {message && <p role="status">{message}</p>}
-      <button className="studio-primary" disabled={pending || googlePending || !configured} type="submit">{pending ? 'One moment…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
+      <button className="studio-primary" disabled={pending || googlePending || !configured || (mode === 'signup' && Boolean(message))} type="submit">{pending ? 'One moment…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { customerSummaries, ordersCsv } from '@/lib/studio-operations';
+import { formatDate } from '@/lib/scheduler';
 
 export function exportOrders(orders) {
   const url = URL.createObjectURL(new Blob([ordersCsv(orders)], { type: 'text/csv;charset=utf-8' }));
@@ -14,7 +15,7 @@ export function StudioCustomers({ orders, openOrder }) {
   const filtered = customers.filter((c) => `${c.name} ${c.email} ${c.phone || ''}`.toLowerCase().includes(query.toLowerCase()));
   return <section className="studio-panel"><div className="queue-title"><div><p className="eyebrow">CUSTOMER BOOK</p><h2>People behind the pieces</h2></div><span>{customers.length} customers</span></div>
     <label className="studio-search">Search customers<input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} placeholder="Name, email, or phone…" /></label>
-    <div className="studio-customer-list">{filtered.slice(page * 25, page * 25 + 25).map((c) => <article key={c.email}><div><h3>{c.name}</h3><a href={`mailto:${encodeURIComponent(c.email)}`}>{c.email}</a><p>{c.phone || 'No phone saved'}</p></div><div><strong>{c.orders.length} orders · ${c.paid.toFixed(2)} paid</strong><details><summary>Order history</summary>{c.orders.map((order) => <button type="button" key={order.id} onClick={() => openOrder(order.id)}>{order.id.slice(0, 8)} · {order.fulfillment_status.replaceAll('_', ' ')} · ${Number(order.subtotal).toFixed(2)}</button>)}</details></div></article>)}</div>
+    <div className="studio-customer-list">{filtered.slice(page * 25, page * 25 + 25).map((c) => <article key={c.email}><div><h3>{c.name}</h3><a href={`mailto:${encodeURIComponent(c.email)}`}>{c.email}</a><p>{c.phone || 'No phone saved'}</p></div><div><strong>{c.orders.length} orders · ${c.paid.toFixed(2)} paid</strong><details><summary>Order history</summary>{c.orders.map((order) => <button type="button" key={order.id} onClick={() => openOrder(order.id)}>{formatDate(String(order.created_at).slice(0, 10))} · {order.fulfillment_status.replaceAll('_', ' ')} · ${Number(order.subtotal).toFixed(2)}</button>)}</details></div></article>)}</div>
     {!filtered.length && <p>No customers match this search. Customers appear when an order is created.</p>}
     <Pagination page={page} setPage={setPage} count={filtered.length} size={25} />
   </section>;

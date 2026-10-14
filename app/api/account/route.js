@@ -1,4 +1,4 @@
-import { readJsonBody } from '@/lib/security';
+import { checkFieldLimits, readJsonBody } from '@/lib/security';
 import { pickAddress, validateOptionalAddress } from '@/lib/address';
 import { jsonError } from '@/lib/require-admin';
 import { getSessionProfile } from '@/lib/supabase/auth';
@@ -10,6 +10,8 @@ export async function PATCH(request) {
     const profile = await getSessionProfile();
     if (!profile) return Response.json({ error: 'Sign in required.' }, { status: 401 });
     const body = await readJsonBody(request);
+    const limitError = checkFieldLimits(body);
+    if (limitError) return Response.json({ error: limitError }, { status: 400 });
     const address = pickAddress(body);
     const addressError = validateOptionalAddress(address);
     if (addressError) return Response.json({ error: addressError }, { status: 400 });

@@ -4,15 +4,16 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-export default function ForgotPasswordForm({ configured }) {
+export default function ForgotPasswordForm({ configured, initialError = '' }) {
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
 
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    setMessage('');
     if (!configured) return setError('Password recovery is temporarily unavailable. Please try again later.');
     setPending(true);
     const { error: authError } = await createClient().auth.resetPasswordForEmail(email, {

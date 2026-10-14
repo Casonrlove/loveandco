@@ -10,7 +10,7 @@ import StudioInventory from './StudioInventory';
 import StudioOrderEditor from './StudioOrderEditor';
 import { exportOrders, Pagination, StudioCustomers, StudioInbox, StudioWebsite } from './StudioOperations';
 import { createSchedule, formatDate, toScheduleOrder, turnaround } from '@/lib/scheduler';
-import { orderMinutes, studioInsights } from '@/lib/studio-insights';
+import { isOverdue, orderMinutes, studioInsights } from '@/lib/studio-insights';
 import FancySelect from './FancySelect';
 import StudioCalendar from './StudioCalendar';
 
@@ -26,7 +26,10 @@ const emptyProduct = {
   image_path: PRODUCT_IMAGES[0],
   active: true,
 };
-const workDays = [['Monday', 1], ['Wednesday', 3], ['Friday', 5], ['Tuesday', 2], ['Thursday', 4], ['Saturday', 6], ['Sunday', 0]];
+const workDays = [['Sunday', 0], ['Monday', 1], ['Tuesday', 2], ['Wednesday', 3], ['Thursday', 4], ['Friday', 5], ['Saturday', 6]];
+const orderFilters = [['active', 'Active'], ['review', 'Needs review'], ['unpaid', 'Awaiting payment'], ['minutes', 'Missing minutes'], ['production', 'In production'], ['overdue', 'Overdue'], ['queued', 'Queued'], ['started', 'Started'], ['shipped', 'Shipped'], ['complete', 'Complete'], ['cancelled', 'Cancelled'], ['all', 'All orders']];
+// Error pages from the host are HTML, not JSON.
+const readJson = (response) => response.json().catch(() => ({ error: 'Server error. Try again.' }));
 
 function statusLabel(order) {
   if (order.fulfillment_status === 'complete') return 'Complete';
@@ -66,7 +69,13 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   const [manual, setManual] = useState(emptyManual);
   const [productDraft, setProductDraft] = useState(emptyProduct);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState({ text: '', tone: 'status' });
+  const setMessage = (text, tone = 'status') => setNotice({ text, tone });
+  const noticeRef = useRef(null);
+  useEffect(() => { if (notice.tone === 'error') noticeRef.current?.scrollIntoView({ block: 'nearest' }); }, [notice]);
+  const [openInquiries, setOpenInquiries] = useState(null);
+  // ponytail: counts the first page of inquiries only; add a count endpoint if the inbox outgrows 50.
+  useEffect(() => { fetch('/api/studio/messages').then(readJson).then((data) => data.messages && setOpenInquiries(data.messages.filter((m) => m.status !== 'resolved').length)).catch(() => {}); }, [tab]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [instagramToken, setInstagramToken] = useState('');
   const [instagramOn, setInstagramOn] = useState(instagramConnected);
@@ -83,6 +92,8 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
     if (filter === 'all') return true;
     if (filter === 'review') return order.fulfillment_status === 'pending_review';
     if (filter === 'unpaid') return order.payment_status !== 'paid' && !['complete', 'cancelled'].includes(order.fulfillment_status);
+    if (filter === 'production') return order.payment_status === 'paid' && ['queued', 'started'].includes(order.fulfillment_status);
+    if (filter === 'overdue') return isOverdue(order);
     if (filter === 'minutes') return order.payment_status === 'paid' && orderMinutes(order) === 0 && !['complete', 'cancelled', 'shipped'].includes(order.fulfillment_status);
     if (filter === 'active') return !['complete', 'cancelled'].includes(order.fulfillment_status);
     return order.fulfillment_status === filter;
@@ -95,17 +106,17 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   // out of order and drop a change. Allow one at a time.
   const savingSettings = useRef(false);
   const persistSettings = async (patch) => {
-    if (savingSettings.current) { setMessage('Still saving availability. Try again in a moment.'); return; }
+    if (savingSettings.current) { setMessage('Still saving availability. Try again in a moment.'); return false; }
     savingSettings.current = true;
     const next = typeof patch === 'function' ? patch(settings) : { ...settings, ...patch };
     setSettings(next);
     setBusy(true);
     try {
       const response = await fetch('/api/studio/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
-      const result = await response.json();
+      const result = await readJson(response);
       if (!response.ok) throw new Error(result.error || 'Could not save availability.');
-      setSettings(result.settings); setMessage('Availability saved.');
-    } catch (error) { setSettings(settings); setMessage(error.message); }
+      setSettings(result.settings); setMessage('Availability saved.'); return true;
+    } catch (error) { setSettings(settings); setMessage(error.message, 'error'); return false; }
     finally { savingSettings.current = false; setBusy(false); }
   };
 
@@ -133,14 +144,15 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       });
-      const result = await response.json();
+      const result = await readJson(response);
       if (!response.ok) throw new Error(result.error || 'Update failed.');
       setOrders((current) => current.map((order) => order.id === id ? result.order : order));
       if (result.warning) setMessage(result.warning);
       else if (result.notification?.status === 'failed') setMessage('Order saved. Customer email failed; contact the customer directly.');
       else if (result.notification?.status === 'disabled') setMessage('Order saved. Email delivery is not configured.');
+      else setMessage('Order saved.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -156,14 +168,14 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(manual),
       });
-      const result = await response.json();
+      const result = await readJson(response);
       if (!response.ok) throw new Error(result.error || 'Could not add order.');
       setOrders((current) => [result.order, ...current]);
       setSelectedId(result.order.id);
       setManual(emptyManual);
       setTab('orders');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -179,7 +191,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...productDraft, slug: productDraft.slug || slugify(productDraft.name) }),
       });
-      const result = await response.json();
+      const result = await readJson(response);
       if (!response.ok) throw new Error(result.error || 'Could not save product.');
       setProducts((current) => {
         const others = current.filter((item) => item.id !== result.product.id);
@@ -188,34 +200,42 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       setProductDraft(emptyProduct);
       setMessage('Product saved.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(error.message, 'error');
     } finally {
       setBusy(false);
     }
   };
 
   const updateProduct = async (product, patch) => {
-    const response = await fetch('/api/studio/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...product, ...patch }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setMessage(result.error || 'Could not update product.');
-      return;
-    }
-    setProducts((current) => current.map((item) => item.id === result.product.id ? result.product : item));
+    setBusy(true);
+    try {
+      const response = await fetch('/api/studio/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...product, ...patch }),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Could not update product.');
+      setProducts((current) => current.map((item) => item.id === result.product.id ? result.product : item));
+    } catch (error) { setMessage(error.message, 'error'); }
+    finally { setBusy(false); }
   };
 
   const removeProduct = async (id) => {
     if (!window.confirm('Delete this product from the catalog? This cannot be undone.')) return;
-    const response = await fetch(`/api/studio/products?id=${id}`, { method: 'DELETE' });
-    if (!response.ok) {
-      setMessage('Could not delete product.');
-      return;
-    }
-    setProducts((current) => current.filter((item) => item.id !== id));
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/studio/products?id=${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Could not delete product.');
+      setProducts((current) => current.filter((item) => item.id !== id));
+    } catch (error) { setMessage(error.message, 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const loadProductDraft = (draft) => {
+    if (productDraft !== emptyProduct && !window.confirm('Replace the product form you are editing?')) return;
+    setProductDraft(draft);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const openOrder = (id) => {
@@ -230,7 +250,6 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         <div>
           <p className="eyebrow">PRIVATE STUDIO</p>
           <h1>The studio workbench</h1>
-          <p>{currentTurnaround.label}</p>
           {mode === 'local' && <p className="helper">Local preview store — connect Supabase for the live database.</p>}
         </div>
         <div className="studio-hero-actions">
@@ -243,10 +262,20 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         </div>
       </section>
 
+      <div className="studio-tabs">
+        {[['board', 'Work queue'], ['orders', 'Orders'], ['products', 'Products'], ['customers', 'Customers'], ['inbox', 'Inquiries'], ['website', 'Website'], ['inventory', 'Inventory'], ['add', 'Add order'], ['settings', 'Availability & Instagram']].map(([id, label]) => (
+          <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
+        ))}
+        <button type="button" className="active-soft" onClick={() => setCalendarOpen(true)}>Calendar</button>
+      </div>
+      {notice.text && <p ref={noticeRef} className={notice.tone === 'error' ? 'form-error studio-message' : 'studio-message'} role={notice.tone === 'error' ? 'alert' : 'status'}>{notice.text}</p>}
+
       {tab === 'board' && <><section className="insight-grid">
         <button type="button" onClick={() => { setFilter('review'); setTab('orders'); }}><span>Needs review</span><strong>{insights.review}</strong></button>
         <button type="button" onClick={() => { setFilter('unpaid'); setTab('orders'); }}><span>Waiting on Venmo</span><strong>{insights.unpaid}</strong><small>${insights.pendingTotal.toFixed(0)}</small></button>
-        <button type="button" onClick={() => { setFilter('queued'); setTab('board'); }}><span>In production</span><strong>{insights.production}</strong></button>
+        <button type="button" onClick={() => { setFilter('production'); setTab('orders'); }}><span>In production</span><strong>{insights.production}</strong></button>
+        <button type="button" onClick={() => { setFilter('overdue'); setTab('orders'); }}><span>Overdue</span><strong>{insights.overdue}</strong></button>
+        <button type="button" onClick={() => setTab('inbox')}><span>Open inquiries</span><strong>{openInquiries ?? '—'}</strong></button>
         <button type="button" onClick={() => { setFilter('minutes'); setTab('orders'); }}><span>Missing minutes</span><strong>{insights.missingMinutes}</strong></button>
         <button type="button" onClick={() => setCalendarOpen(true)}><span>This week booked</span><strong>{insights.weekPct}%</strong><small>{insights.weekUsed}/{insights.weekCap || 0} min</small></button>
         <button type="button" onClick={() => setCalendarOpen(true)}><span>Next open night</span><strong>{insights.nextOpen ? formatDate(insights.nextOpen) : '—'}</strong><small>{insights.nextOpenMinutes} min free</small></button>
@@ -282,17 +311,10 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
       </section>
 
       </>}
-      <div className="studio-tabs">
-        {[['board', 'Work queue'], ['orders', 'Orders'], ['products', 'Products'], ['customers', 'Customers'], ['inbox', 'Inquiries'], ['website', 'Website'], ['inventory', 'Inventory'], ['add', 'Add order'], ['settings', 'Availability & Instagram']].map(([id, label]) => (
-          <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
-        ))}
-        <button type="button" className="active-soft" onClick={() => setCalendarOpen(true)}>Calendar</button>
-      </div>
-      {message && <p className="form-error studio-message" role="alert">{message}</p>}
 
       {tab === 'board' && (
         <section className="studio-panel queue-panel">
-          <div className="studio-toolbar"><label>Queue filter<select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(0); }}>{[["active", "Active"], ["review", "Needs review"], ["unpaid", "Awaiting payment"], ["queued", "Queued"], ["started", "Started"], ["shipped", "Shipped"], ["complete", "Complete"], ["cancelled", "Cancelled"], ["all", "All orders"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="soft-button" onClick={() => exportOrders(visibleOrders)}>Export this view</button></div>
+          <div className="studio-toolbar"><label>Queue filter<select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(0); }}>{orderFilters.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="soft-button" onClick={() => exportOrders(visibleOrders)}>Export this view</button></div>
           <div className="queue-title">
             <div><p className="eyebrow">BOARD</p><h2>What’s on your plate</h2></div>
             <label className="studio-search"><Search /><input aria-label="Search orders" name="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, item" /></label>
@@ -323,10 +345,9 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                       )}
                     </div>
                     <div className="order-actions">
-                      {order.payment_status === 'unpaid' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { payment_status: 'requested' })}>Venmo sent</button>}
-                      {order.payment_status !== 'paid' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { payment_status: 'paid', fulfillment_status: 'queued' })}>Paid</button>}
+                      {order.payment_status === 'unpaid' && <button type="button" disabled={busy} onClick={() => window.confirm('Mark Venmo requested and email the customer?') && patchOrder(order.id, { payment_status: 'requested' })}>Venmo sent</button>}
+                      {order.payment_status !== 'paid' && <button type="button" disabled={busy} onClick={() => window.confirm('Mark paid and email the customer?') && patchOrder(order.id, { payment_status: 'paid', fulfillment_status: 'queued' })}>Paid</button>}
                       {order.payment_status === 'paid' && order.fulfillment_status === 'queued' && <button type="button" disabled={busy} onClick={() => patchOrder(order.id, { fulfillment_status: 'started' })}>Start</button>}
-                      {['queued', 'started'].includes(order.fulfillment_status) && <button type="button" onClick={() => openOrder(order.id)}>Shipping details</button>}
                       {!['complete', 'cancelled'].includes(order.fulfillment_status) && <button type="button" disabled={busy} onClick={() => finishOrder(order)}>Mark finished</button>}
                       <button type="button" onClick={() => openOrder(order.id)}>Open</button>
                     </div>
@@ -349,18 +370,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             <label>Order filter<FancySelect
               value={filter}
               onChange={setFilter}
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'review', label: 'Needs review' },
-                { value: 'unpaid', label: 'Unpaid' },
-                { value: 'minutes', label: 'Missing minutes' },
-                { value: 'queued', label: 'Queued' },
-                { value: 'started', label: 'Started' },
-                { value: 'shipped', label: 'Shipped' },
-                { value: 'complete', label: 'Complete' },
-                { value: 'cancelled', label: 'Cancelled' },
-                { value: 'all', label: 'All' },
-              ]}
+              options={orderFilters.map(([value, label]) => ({ value, label }))}
             /></label>
             <div className="order-index">
               {displayedOrders.map((order) => (
@@ -382,7 +392,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
           {tab === 'settings' && <aside className="studio-panel settings-panel">
             <div className="panel-heading"><Calendar3 /><div><p className="eyebrow">AVAILABILITY</p><h2>Your stitching rhythm</h2></div></div>
             <label>Minutes per embroidery night
-              <input type="number" min="30" step="15" key={settings.minutesPerSession} defaultValue={settings.minutesPerSession} onBlur={(event) => { if (Number(event.target.value) !== Number(settings.minutesPerSession)) persistSettings({ minutesPerSession: Number(event.target.value) }); }} />
+              <input type="number" min="30" step="15" key={settings.minutesPerSession} defaultValue={settings.minutesPerSession} onBlur={(event) => { const input = event.target; if (Number(input.value) !== Number(settings.minutesPerSession)) persistSettings({ minutesPerSession: Number(input.value) }).then((ok) => { if (!ok) input.value = settings.minutesPerSession; }); }} />
             </label>
             <p className="helper">Work nights and days off are faster from the calendar. These pills set the weekly default.</p>
             <div className="day-pills">
@@ -419,14 +429,14 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                     body: JSON.stringify({ token: instagramToken }),
                   });
                   if (!response.ok) {
-                    setMessage('Could not save Instagram token.');
+                    setMessage('Could not save Instagram token.', 'error');
                     return;
                   }
                   setInstagramOn(true);
                   setInstagramToken('');
                   setMessage('Instagram connected. Home will show live posts.');
                 } catch {
-                  setMessage('Could not save Instagram token. Check your connection and try again.');
+                  setMessage('Could not save Instagram token. Check your connection and try again.', 'error');
                 } finally {
                   setBusy(false);
                 }
@@ -487,16 +497,16 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                 <label>Design minutes<input type="number" min="0" value={productDraft.design_minutes} onChange={(event) => setProductDraft({ ...productDraft, design_minutes: event.target.value })} /></label>
                 <label>Stitch minutes<input type="number" min="0" value={productDraft.stitch_minutes} onChange={(event) => setProductDraft({ ...productDraft, stitch_minutes: event.target.value })} /></label>
               </div>
-              <label>Photo
+              {!productDraft.photo_paths?.length && <label>Photo
                 <FancySelect
                   value={productDraft.image_path}
                   onChange={(value) => setProductDraft({ ...productDraft, image_path: value })}
                   options={PRODUCT_IMAGES.map((image) => ({ value: image, label: image.replace('/images/', '') }))}
                 />
-              </label>
+              </label>}
               <label>Display order<input type="number" min="0" max="100000" value={productDraft.sort_order || 0} onChange={(event) => setProductDraft({ ...productDraft, sort_order: event.target.value })} /></label>
               <StoreImage className="studio-product-preview" src={productDraft.image_path} alt="Product photo preview" />
-              <StudioPhotos photos={productDraft.photo_paths || []} onChange={(photos) => setProductDraft({ ...productDraft, photo_paths: photos, image_path: photos[0] || '/images/Logo.png' })} />
+              <StudioPhotos photos={productDraft.photo_paths || []} onChange={(photos) => setProductDraft({ ...productDraft, photo_paths: photos, image_path: photos[0] || '/images/logo-crest.png' })} />
               <button className="studio-primary" type="submit" disabled={busy}>{productDraft.id ? 'Save product' : 'Add to shop'}</button>
               {productDraft.id && <button type="button" className="soft-button" onClick={() => setProductDraft(emptyProduct)}>Cancel editing</button>}
             </form>
@@ -511,10 +521,10 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
                     <strong>{product.name}</strong>
                     <p>{CATEGORIES.find((category) => category.id === product.category)?.name} · ${itemTotal(product).toFixed(2)} · {product.design_minutes}m / {product.stitch_minutes}m · {product.active ? 'live' : 'hidden'}</p>
                     <div className="order-actions">
-                      <button type="button" onClick={() => { setProductDraft(product); window.scrollTo({ top: 0, behavior: 'instant' }); }}>Edit</button>
-                      <button type="button" onClick={() => setProductDraft({ ...product, id: undefined, name: `${product.name} copy`, slug: '', active: false })}>Duplicate draft</button>
-                      <button type="button" onClick={() => updateProduct(product, { active: !product.active })}>{product.active ? 'Hide' : 'Show'}</button>
-                      <button className="icon-button" type="button" onClick={() => removeProduct(product.id)} aria-label={`Delete ${product.name}`}><Trash3 /></button>
+                      <button type="button" onClick={() => loadProductDraft(product)}>Edit</button>
+                      <button type="button" onClick={() => loadProductDraft({ ...product, id: undefined, name: `${product.name} copy`, slug: '', active: false })}>Duplicate draft</button>
+                      <button type="button" disabled={busy} onClick={() => updateProduct(product, { active: !product.active })}>{product.active ? 'Hide' : 'Show'}</button>
+                      <button className="icon-button" type="button" disabled={busy} onClick={() => removeProduct(product.id)} aria-label={`Delete ${product.name}`}><Trash3 /></button>
                     </div>
                   </div>
                 </article>

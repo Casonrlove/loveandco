@@ -53,3 +53,14 @@ select pg_get_userbyid(d.defaclrole) as owner, d.defaclobjtype as object_type, d
 from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace
 where n.nspname = 'public' and d.defaclrole = 'postgres'::regrole and d.defaclobjtype in ('r', 'S')
   and d.defaclacl::text ~ '(anon|authenticated|service_role)=';
+
+-- Function default privileges: should return one row with EXECUTE revoked from PUBLIC (acl without '=X/').
+select d.defaclacl from pg_default_acl d
+where d.defaclnamespace = 0 and d.defaclrole = 'postgres'::regrole and d.defaclobjtype = 'f';
+
+-- Check constraints: every row should be validated (true) except orders_email_normalized, which stays NOT VALID.
+select conrelid::regclass as table_name, conname, convalidated
+from pg_constraint where contype = 'c' and connamespace = 'public'::regnamespace order by 1, 2;
+
+-- Profile sync trigger: should fire on INSERT OR UPDATE OF email, raw_user_meta_data.
+select pg_get_triggerdef(oid) from pg_trigger where tgname = 'on_auth_user_created';

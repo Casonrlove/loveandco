@@ -19,6 +19,8 @@ import TurnaroundNote from './TurnaroundNote';
 
 const VALID_SORTS = new Set(['featured', 'price-low', 'price-high', 'name']);
 const VALID_PRICE_FILTERS = new Set(['all', 'under-30', '30-plus']);
+// Napkins have a 10-piece minimum, so their lowest checkout price is 10 × the unit price.
+const cardPrice = (item) => basePrice(item) * (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1);
 
 export default function Shop(props) {
   const pathname = usePathname();
@@ -172,7 +174,7 @@ function ShopContent({ category, productKey, products }) {
     const bundle = basePrice(product);
     return (
       <div className="addon-picker">
-        <p className="helper">Add extra embroidered pieces to this bundle. Outfits $22 each, burp cloths $12, bibs $12, and paci clips $6.</p>
+        <p className="helper">Add extra embroidered pieces to this bundle. {BUNDLE_ADDONS.map((addon) => `${addon.label.replace('Additional ', '')} $${addon.price}`).join(', ')} each.</p>
         <div className="addon-picker-grid">
           {BUNDLE_ADDONS.map((addon) => (
             <label key={addon.id}>{addon.label}
@@ -199,7 +201,7 @@ function ShopContent({ category, productKey, products }) {
     const total = each * napkinCount;
     return (
       <div className="people-picker">
-        <p className="helper">Priced per napkin. 10 minimum. $12 each for 10–19, $10 each for 20–39, $9 each for 40–59, and $8 each for 60 and up.</p>
+        <p className="helper">Priced per napkin. {NAPKIN_MIN_QTY} minimum. ${napkinUnitPrice(10)} each for 10–19, ${napkinUnitPrice(20)} each for 20–39, ${napkinUnitPrice(40)} each for 40–59, and ${napkinUnitPrice(60)} each for 60 and up.</p>
         <label>Quantity
           <FancySelect
             value={String(napkinCount)}
@@ -221,9 +223,9 @@ function ShopContent({ category, productKey, products }) {
         <>
           <p className="helper">
             {isPerPersonPackage(product)
-              ? 'Design details are required. A $20 design fee is added once per order.'
+              ? `Design details are required. A $${PACKAGE_ORDER_DESIGN_FEE} design fee is added once per order.`
               : isTieredNapkins(product)
-                ? 'Design details are required. A $30 design fee is added once per order.'
+                ? `Design details are required. A $${NAPKIN_ORDER_DESIGN_FEE} design fee is added once per order.`
                 : isMonogramTowel(product)
                   ? 'Choose 1 letter and 1 thread color.'
                   : 'Customization is included. Please choose your theme and design details. Extra outfits, burp cloths, bibs, and paci clips can be added below.'}
@@ -261,7 +263,7 @@ function ShopContent({ category, productKey, products }) {
 
   const visibleProducts = useMemo(() => products
     .filter((item) => item.category === categoryId)
-    .filter((item) => priceFilter === 'all' || (priceFilter === 'under-30' ? basePrice(item) < 30 : basePrice(item) >= 30))
+    .filter((item) => priceFilter === 'all' || (priceFilter === 'under-30' ? cardPrice(item) < 30 : cardPrice(item) >= 30))
     .sort((a, b) => sort === 'price-low' ? basePrice(a) - basePrice(b) : sort === 'price-high' ? basePrice(b) - basePrice(a) : sort === 'name' ? a.name.localeCompare(b.name) : (a.sort_order || 0) - (b.sort_order || 0)), [products, categoryId, priceFilter, sort]);
 
   return (
@@ -292,8 +294,8 @@ function ShopContent({ category, productKey, products }) {
                     ? addonPicker(activeProduct)
                     : <p className="item-price">${basePrice(activeProduct).toFixed(2)}</p>}
               {designSection(activeProduct)}
-              {designError && <p className="form-error" role="alert">{designError}</p>}
               <TurnaroundNote />
+              {designError && <p className="form-error" role="alert">{designError}</p>}
               <button className="studio-primary" type="button" onClick={() => addToCart(activeProduct, designDraft)}>Add to bag</button>
             </div>
           </div>
@@ -376,19 +378,19 @@ function ShopContent({ category, productKey, products }) {
                 />
                 <Link href={productHref(product)} onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openItem(product); }}>
                   <div>
-                    <p className="eyebrow">CUSTOM EMBROIDERY</p>
+                    <p className="eyebrow">{activeCategory.preorder ? 'PREORDER' : 'CUSTOM EMBROIDERY'}</p>
                     <h2>{product.name}</h2>
                     <p>{product.detail}</p>
                   </div>
                 </Link>
                 <div className="product-bottom">
-                  <strong>{isPerPersonPackage(product) ? `$${Number(product.item_price || product.price || 0).toFixed(2)} / person` : isTieredNapkins(product) ? 'From $8.00 each' : `$${basePrice(product).toFixed(2)}`}</strong>
+                  <strong>{isPerPersonPackage(product) ? `$${basePrice(product).toFixed(2)} / person · $${PACKAGE_ORDER_DESIGN_FEE} design fee` : isTieredNapkins(product) ? `$${napkinUnitPrice(60)}–$${napkinUnitPrice(NAPKIN_MIN_QTY)} each · ${NAPKIN_MIN_QTY} minimum` : `$${basePrice(product).toFixed(2)}`}</strong>
                   <button onClick={() => startAdd(product)} type="button">Add to bag <Plus /></button>
                 </div>
               </article>
             ))}
           </section>
-          {visibleProducts.length === 0 && <p className="empty-catalog">Nothing is listed in this collection yet. A custom order is always welcome.</p>}
+          {visibleProducts.length === 0 && <p className="empty-catalog">Nothing is listed in this collection yet. <Link href="/custom">A custom order</Link> is always welcome.</p>}
         </>
       )}
 
@@ -437,7 +439,7 @@ function ShopContent({ category, productKey, products }) {
                     </div>
                     <div className="cart-controls">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1) ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
+                        <button type="button" aria-label={`Remove one ${item.name}`} disabled={item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1)} onClick={() => updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
                         <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>

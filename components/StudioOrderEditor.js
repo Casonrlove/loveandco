@@ -2,7 +2,7 @@
 
 import StudioProofs from './StudioProofs';
 import { trackingUrl } from '@/lib/operations-utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fulfillmentStatuses, paymentStatuses } from '@/lib/studio-operations';
 import { proofRows } from '@/lib/design-options';
 const label = (value) => value.replaceAll('_', ' ');
@@ -15,6 +15,9 @@ export default function StudioOrderEditor({ order, onSaved, onDirty }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const panel = useRef(null);
+  // Below 900px the order index stacks above the editor, so tapping an order looks like nothing happened.
+  useEffect(() => { if (window.matchMedia('(max-width: 899px)').matches) panel.current?.scrollIntoView({ block: 'start' }); }, []);
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/studio/orders/${order.id}`, { signal: controller.signal }).then(async (res) => {
@@ -51,7 +54,7 @@ export default function StudioOrderEditor({ order, onSaved, onDirty }) {
     } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
-  return <section className="studio-panel order-workbench">
+  return <section ref={panel} className="studio-panel order-workbench">
     <div className="queue-title"><div><p className="eyebrow">ORDER · {order.id.slice(0, 8)}</p><h2>{order.name}</h2><a href={`mailto:${encodeURIComponent(order.email)}`}>{order.email}</a></div><strong>{money(total)}</strong></div>
     <div className="order-actions no-print"><button type="button" onClick={() => window.print()}>Print order sheet</button><a className="soft-button" href={`mailto:${encodeURIComponent(order.email)}?subject=${encodeURIComponent('Your Love & Co. order')}`}>Draft customer email</a><a className="soft-button" href={`mailto:${encodeURIComponent(order.email)}?subject=${encodeURIComponent('Your Love & Co. quote')}&body=${encodeURIComponent(quoteText)}`}>Draft quote email</a></div>
     <p className="helper no-print">Status changes may email the customer. Payment statuses record payments handled separately in Venmo.</p>
@@ -73,9 +76,9 @@ export default function StudioOrderEditor({ order, onSaved, onDirty }) {
         <label>Payment<select value={draft.payment_status} onChange={(e) => field('payment_status', e.target.value)}>{paymentStatuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
         <label>Order status<select value={draft.fulfillment_status} onChange={(e) => field('fulfillment_status', e.target.value)}>{fulfillmentStatuses.map((s) => <option key={s} value={s}>{label(s)}</option>)}</select></label>
         <label>Priority<select value={draft.priority} onChange={(e) => field('priority', e.target.value)}><option value="standard">Standard</option><option value="rush">Rush</option></select></label>
-      </div><div className="form-row"><label>Delivery method<select value={draft.delivery_method || 'shipping'} onChange={(e) => field('delivery_method',e.target.value)}><option value="shipping">Shipping</option><option value="pickup">Local pickup</option></select></label><label>Carrier<select value={draft.carrier || ''} onChange={(e) => field('carrier',e.target.value)}><option value="">Choose a carrier</option>{['usps','ups','fedex','dhl'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}</select></label></div>
+      </div><div className="form-row"><label>Delivery method<select value={draft.delivery_method || 'shipping'} onChange={(e) => field('delivery_method',e.target.value)}><option value="shipping">Shipping</option><option value="pickup">Local pickup</option></select></label>{draft.delivery_method !== 'pickup' && <label>Carrier<select value={draft.carrier || ''} onChange={(e) => field('carrier',e.target.value)}><option value="">Choose a carrier</option>{['usps','ups','fedex','dhl'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}</select></label>}</div>
       {draft.delivery_method === 'pickup' && <label>Pickup instructions<textarea maxLength={500} rows={3} value={draft.pickup_instructions || ''} onChange={(e) => field('pickup_instructions',e.target.value)} /></label>}
-      <label>Tracking number<input value={draft.tracking_number || ''} onChange={(e) => field('tracking_number', e.target.value)} /></label>{trackingUrl(draft.carrier, draft.tracking_number) && <a href={trackingUrl(draft.carrier, draft.tracking_number)} target="_blank" rel="noopener noreferrer">Open carrier tracking</a>}</fieldset>
+      {draft.delivery_method !== 'pickup' && <><label>Tracking number<input value={draft.tracking_number || ''} onChange={(e) => field('tracking_number', e.target.value)} /></label>{trackingUrl(draft.carrier, draft.tracking_number) && <a href={trackingUrl(draft.carrier, draft.tracking_number)} target="_blank" rel="noopener noreferrer">Open carrier tracking</a>}</>}</fieldset>
       <label>Customer-facing notes<textarea disabled={busy} maxLength={10000} rows={3} value={draft.customer_notes || ''} onChange={(e) => field('customer_notes', e.target.value)} /></label>
       <label className="no-print">Private staff notes<textarea disabled={!notesReady || busy}maxLength={10000} rows={4} value={staffNotes} onChange={(e) => { setDirty(true); setStaffNotes(e.target.value); }} /><small>Only visible in Studio. Excluded from the customer account, exports, and printed order sheet.</small></label>
       <div className="studio-save-bar no-print"><span>{dirty ? 'Unsaved changes' : 'Up to date'}</span><button type="submit" className="studio-primary" disabled={busy}>{busy ? 'Saving…' : 'Save order'}</button></div>

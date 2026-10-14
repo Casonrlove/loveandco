@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
@@ -20,10 +21,11 @@ export default function Contact() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error([400, 429].includes(response.status) ? result.error : '');
       setSent(true);
-    } catch {
-      setError('Your message could not be sent. Please email loveandcoembroidery@gmail.com.');
+    } catch (failure) {
+      setError(failure.message || 'Your message could not be sent. Please email loveandcoembroidery@gmail.com.');
     } finally {
       setIsSubmitting(false);
     }
@@ -41,6 +43,7 @@ export default function Contact() {
         <div className="auth-card" role="status">
           <p className="eyebrow">MESSAGE SENT</p>
           <h2>Thank you — I’ll be in touch soon.</h2>
+          <p className="helper">Replies usually come within a day. In the meantime, <Link href="/shop">browse the shop</Link>.</p>
         </div>
       ) : (
         <form className="order-form contact-form" onSubmit={submit}>

@@ -8,6 +8,13 @@ export const revalidate = 900;
 
 export async function generateStaticParams() { return []; }
 
+export async function generateMetadata({ params }) {
+  const { product } = await params;
+  const item = findProduct(await getPublicProducts(), product);
+  if (!item) return {};
+  return { title: item.name, description: item.detail || undefined };
+}
+
 export default async function ShopProductPage({ params }) {
   const { category, product } = await params;
   if (!categoryById(category)) notFound();

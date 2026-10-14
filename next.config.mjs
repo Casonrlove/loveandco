@@ -7,14 +7,17 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
   `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isDev ? ' ws:' : ''}`,
   "media-src 'self' https:",
 ].join('; ');
 
 const nextConfig = {
+  async redirects() {
+    return [{ source: '/images/Logo.png', destination: '/images/logo-crest.png', permanent: true }];
+  },
   async headers() {
     return [{ source: '/:path*', headers: [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -28,7 +31,6 @@ const nextConfig = {
     '*.lhr.life',
     '*.ngrok-free.dev',
     '*.ngrok-free.app',
-    'destinee-unbenignant-shandra.ngrok-free.dev',
   ],
 
 };

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addonTotal, lineTotal, napkinUnitPrice, orderDesignFee } from '../lib/catalog.js';
+import { addonTotal, cartTotal, designFee, lineTotal, napkinUnitPrice, orderDesignFee } from '../lib/catalog.js';
 
 test('wedding napkin unit prices follow quantity tiers', () => {
   assert.equal(napkinUnitPrice(10), 12);
@@ -32,4 +32,12 @@ test('baby bundle add-ons follow Blanks Boutique plus stitch prices', () => {
   assert.equal(lineTotal({ ...bundle, quantity: 1 }), 75 + 64);
   assert.equal(lineTotal({ ...bundle, quantity: 2 }), 150 + 64);
   assert.equal(addonTotal({ category: 'baby-bundles', bundleAddons: {} }), 0);
+});
+
+test('cartTotal adds the design fee only when wantsDesign is set', () => {
+  const hat = { slug: 'hat', price: 30, embroideryPrice: 10, quantity: 2 };
+  assert.equal(cartTotal([hat]), 60);
+  assert.equal(cartTotal([{ ...hat, wantsDesign: true }]), 80);
+  assert.equal(designFee({ slug: 'monogram-towel', price: 25, embroideryPrice: 10 }), 0);
+  assert.equal(cartTotal([{ slug: 'monogram-towel', price: 25, embroideryPrice: 10, wantsDesign: true, quantity: 1 }]), 25);
 });

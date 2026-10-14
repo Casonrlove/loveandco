@@ -8,6 +8,8 @@ test('counts review, unpaid, and missing minutes', () => {
     { fulfillment_status: 'pending_review', payment_status: 'unpaid', subtotal: 20, items: [{ design_minutes: 0, stitch_minutes: 0, quantity: 1 }] },
     { fulfillment_status: 'queued', payment_status: 'paid', subtotal: 40, items: [{ design_minutes: 0, stitch_minutes: 0, quantity: 1 }] },
     { fulfillment_status: 'started', payment_status: 'paid', subtotal: 10, name: 'A', created_at: '2026-01-01', items: [{ design_minutes: 10, stitch_minutes: 20, quantity: 1 }] },
+    { fulfillment_status: 'queued', payment_status: 'paid', subtotal: 10, name: 'B', promised_on: '2020-01-01', items: [{ design_minutes: 5, stitch_minutes: 5, quantity: 1 }] },
+    { fulfillment_status: 'shipped', payment_status: 'paid', subtotal: 10, name: 'C', promised_on: '2020-01-01', items: [] },
   ];
   const schedule = createSchedule(orders.filter((order) => order.payment_status === 'paid').map((order) => ({
     id: order.name || 'x',
@@ -20,6 +22,7 @@ test('counts review, unpaid, and missing minutes', () => {
   })), defaultSettings);
   const insights = studioInsights(orders, schedule, defaultSettings);
   assert.equal(insights.review, 1);
+  assert.equal(insights.overdue, 1);
   assert.equal(insights.unpaid, 1);
   assert.equal(insights.missingMinutes, 1);
   assert.equal(orderMinutes(orders[2]), 30);

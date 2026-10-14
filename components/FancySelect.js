@@ -10,7 +10,7 @@ export default function FancySelect({ value, onChange, options, placeholder = 'C
           const selected = options.find((option) => String(option.value) === event.target.value);
           onChange(selected ? selected.value : event.target.value);
         }}>
-        <option value="" disabled>{placeholder}</option>
+        {!options.some((option) => option.value === '') && <option value="" disabled>{placeholder}</option>}
         {options.map((option) => <option key={String(option.value)} value={option.value}>{option.label}</option>)}
       </select>
       <ChevronDown className="select-chevron" aria-hidden="true" />

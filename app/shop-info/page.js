@@ -1,5 +1,5 @@
 import { getPublicWebsite } from '@/lib/public-data';
-export const metadata = { title: 'Shop information · Love & Co.' };
+export const metadata = { title: 'Shop information' };
 export default async function ShopInfoPage() {
   const { info } = await getPublicWebsite();
   return <main className="shop-info-page"><p className="eyebrow">A LITTLE HELP</p><h1>Good to know</h1>

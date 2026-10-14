@@ -5,15 +5,17 @@ import StoreImage from './StoreImage';
 import { getPublicInstagram, getPublicProducts } from '@/lib/public-data';
 import {
   FAVORITE_SLUGS,
+  NAPKIN_MIN_QTY,
   basePrice,
   isPerPersonPackage,
   isTieredNapkins,
+  napkinUnitPrice,
   productHref,
 } from '@/lib/catalog';
 
 function priceLabel(product) {
   if (isPerPersonPackage(product)) return `$${basePrice({ ...product, quantity: 1 }).toFixed(2)} / person`;
-  if (isTieredNapkins(product)) return 'From $8.00 each';
+  if (isTieredNapkins(product)) return `$${napkinUnitPrice(60)}–$${napkinUnitPrice(NAPKIN_MIN_QTY)} each · ${NAPKIN_MIN_QTY} minimum`;
   return `$${basePrice(product).toFixed(2)}`;
 }
 
@@ -36,9 +38,10 @@ export default async function Home() {
           <p className="eyebrow">WELCOME</p>
           <h1>Love & Co. Embroidery</h1>
           <p>
-            Hi friends & welcome to @loveandcoembroidery! From the bottom of my heart THANK YOU for being here. Whether it’s a gift, a keepsake, or a little something to make you smile, I’d love to create something you’ll love for years to come. If you see anything you’d like or have something in mind — shoot me a message! I’d love to work with you!
+            Hi friends & welcome to @loveandcoembroidery! Whether it’s a gift, a keepsake, or a little something to make you smile, I’d love to create something you’ll love for years to come. Have something in mind? <Link href="/contact">Shoot me a message</Link>.
           </p>
           <Link href="/shop" className="soft-button">Shop Our Collections</Link>
+          <Link href="/custom" className="ghost-button">Start a custom order</Link>
         </div>
       </section>
 

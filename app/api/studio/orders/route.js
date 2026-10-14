@@ -1,13 +1,13 @@
 import { validateManualOrder } from '@/lib/studio-operations';
 import { readJsonBody } from '@/lib/security';
-import { jsonError, requireAdmin } from '@/lib/require-admin';
+import { jsonError } from '@/lib/require-admin';
+import { requireStudio } from '@/lib/studio-guard';
 import { notifyNewOrder } from '@/lib/notifications';
-import { createOrder, persistenceMode } from '@/lib/store';
-import { hasSupabaseConfig } from '@/lib/supabase/config';
+import { createOrder } from '@/lib/store';
 
 export async function POST(request) {
   try {
-    if (hasSupabaseConfig() || persistenceMode() === 'none') await requireAdmin();
+    await requireStudio();
     const body = await readJsonBody(request);
     if (!body.name || !body.email || !body.item) {
       return Response.json({ error: 'Customer, email, and item are required.' }, { status: 400 });

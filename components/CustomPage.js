@@ -5,7 +5,7 @@ import { useModalFocus } from '@/lib/use-modal-focus';
 import { useMemo, useState } from 'react';
 import { Dash, Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
-import { CART_EVENT, CART_KEY, CUSTOM_TYPES, NAPKIN_MIN_QTY, basePrice, cartTotal, designFee, isTieredNapkins } from '@/lib/catalog';
+import { CART_EVENT, CART_KEY, CUSTOM_TYPES, NAPKIN_MIN_QTY, basePrice, cartTotal, designFee, isTieredNapkins, orderDesignFee } from '@/lib/catalog';
 import { useCart } from '@/lib/use-cart';
 import { parseCustomQuantity } from '@/lib/custom-order';
 import FancySelect from './FancySelect';
@@ -31,6 +31,7 @@ export default function CustomPage() {
   const bag = cart;
   const hasCustomItem = bag.some((item) => item.isCustom);
   const total = useMemo(() => cartTotal(bag), [bag]);
+  const packageFee = orderDesignFee(bag);
   const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
 
@@ -93,7 +94,7 @@ export default function CustomPage() {
           <label>Color / material<input value={draft.color} onChange={(event) => setDraft({ ...draft, color: event.target.value })} placeholder="Optional" /></label>
         </div>
         <label>Personalization<input value={draft.personalization} onChange={(event) => setDraft({ ...draft, personalization: event.target.value })} placeholder="Names, monogram, wording" /></label>
-        <label>Needed by<input type="date" value={draft.neededBy} onChange={(event) => setDraft({ ...draft, neededBy: event.target.value })} /></label>
+        <label>Needed by<input type="date" min={new Date().toISOString().slice(0, 10)} value={draft.neededBy} onChange={(event) => setDraft({ ...draft, neededBy: event.target.value })} /></label>
         <label>Project details<textarea required value={draft.details} onChange={(event) => setDraft({ ...draft, details: event.target.value })} placeholder="Tell me about your idea, inspiration, or anything else I should know." /></label>
         <button className="studio-primary" type="submit">Add custom order to bag</button>
       </form>
@@ -117,7 +118,7 @@ export default function CustomPage() {
                     </div>
                     <div className="cart-controls">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1) ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
+                        <button type="button" aria-label={`Remove one ${item.name}`} disabled={item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1)} onClick={() => updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
                         <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
@@ -126,6 +127,12 @@ export default function CustomPage() {
                   </article>
                 ))}
               </div>
+              {packageFee > 0 && (
+                <div className="cart-total">
+                  <span>One-time design fee</span>
+                  <strong>${packageFee.toFixed(2)}</strong>
+                </div>
+              )}
               <div className="cart-total">
                 <span>{hasCustomItem ? 'Priced items subtotal' : 'Estimated total'}</span>
                 <strong>${total.toFixed(2)}</strong>

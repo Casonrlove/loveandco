@@ -1,12 +1,12 @@
 import { refreshPromisedDates } from '@/lib/schedule-service';
 import { readJsonBody, validateSettings } from '@/lib/security';
-import { jsonError, requireAdmin } from '@/lib/require-admin';
-import { hasSupabaseConfig } from '@/lib/supabase/config';
-import { persistenceMode, saveSettings } from '@/lib/store';
+import { jsonError } from '@/lib/require-admin';
+import { requireStudio } from '@/lib/studio-guard';
+import { saveSettings } from '@/lib/store';
 
 export async function PATCH(request) {
   try {
-    if (hasSupabaseConfig() || persistenceMode() === 'none') await requireAdmin();
+    await requireStudio();
     const body = await readJsonBody(request);
     const error = validateSettings(body);
     if (error) return Response.json({ error }, { status: 400 });

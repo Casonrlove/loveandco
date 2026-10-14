@@ -125,4 +125,24 @@ test('Supabase migrations enforce ownership, column permissions, and atomic chec
     });
   });
 
+  await t.test('Order emails must be normalized; profile sync follows auth email but keeps an edited name', async () => {
+    await asRole('service_role', '', () => assert.rejects(db.query("insert into public.orders(email,name) values ('Mixed@Example.test','X')"), { code: '23514' }));
+    const carol = '00000000-0000-4000-8000-000000000050';
+    await db.query(`insert into auth.users (id,email,raw_user_meta_data) values ('${carol}','carol@example.test','{"full_name":"Carol"}')`);
+    await db.query(`update public.profiles set full_name = 'Edited' where id = '${carol}'`);
+    await db.query(`update auth.users set email = 'carol2@example.test' where id = '${carol}'`);
+    assert.equal((await db.query(`select email from public.profiles where id = '${carol}'`)).rows[0].email, 'carol2@example.test');
+    await db.query(`update auth.users set raw_user_meta_data = '{"full_name":"Carol Two"}' where id = '${carol}'`);
+    assert.deepEqual((await db.query(`select email, full_name from public.profiles where id = '${carol}'`)).rows[0], { email: 'carol2@example.test', full_name: 'Edited' });
+    assert.match(String((await db.query("select proconfig from pg_proc where proname = 'handle_new_user'")).rows[0].proconfig), /search_path=/);
+  });
+
+  await t.test('New tables and functions get no automatic access', async () => {
+    await db.exec("create table public.probe(id int); create function public.probe_fn() returns int language sql as $$ select 1 $$;");
+    for (const role of ['anon', 'authenticated']) await asRole(role, alice, async () => {
+      await assert.rejects(db.query('select * from public.probe'), { code: '42501' });
+      assert.equal((await db.query("select has_function_privilege(current_user,'public.probe_fn()','execute') as allowed")).rows[0].allowed, false);
+    });
+  });
+
 });

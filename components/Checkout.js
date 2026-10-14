@@ -20,11 +20,10 @@ export default function Checkout({ user, website }) {
   const [delivery, setDelivery] = useState('shipping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(() => { try { return JSON.parse(sessionStorage.getItem('loveandco-order') || 'null'); } catch { return null; } });
   const [venmo, setVenmo] = useState(user?.venmo_username || '');
   const [venmoVerified, setVenmoVerified] = useState(false);
 
-  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const itemsTotal = useMemo(() => cart.reduce((sum, item) => (
     item.isCustom ? sum : sum + basePrice(item) * item.quantity + addonTotal(item)
   ), 0), [cart]);
@@ -33,6 +32,7 @@ export default function Checkout({ user, website }) {
   ), 0) + orderDesignFee(cart), [cart]);
   const total = useMemo(() => cartTotal(cart), [cart]);
   const hasCustomItem = cart.some((item) => item.isCustom);
+  const paused = website?.ordersOpen === false;
 
   const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
@@ -41,7 +41,7 @@ export default function Checkout({ user, website }) {
     event.preventDefault();
     if (!cart.length || submitting.current) return;
     const form = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const designError = cart.map(validateDesignItem).find(Boolean);
+    const designError = cart.map((item) => { const error = validateDesignItem(item); return error && `${item.name}: ${error}`; }).find(Boolean);
     if (designError) {
       setSubmitError(designError);
       return;
@@ -76,7 +76,9 @@ export default function Checkout({ user, website }) {
       if (!response.ok) throw new Error(result.error || 'Your order could not be sent.');
       retry.current = null;
       try { sessionStorage.removeItem('loveandco-checkout-retry'); } catch {}
-      setIsSubmitted(true);
+      const receipt = { id: result.order?.id || '', total };
+      try { sessionStorage.setItem('loveandco-order', JSON.stringify(receipt)); } catch {}
+      setSubmitted(receipt);
       setCart([]);
     } catch (error) {
       setSubmitError(error.message || 'Your order could not be sent. Please try again or contact us directly.');
@@ -88,15 +90,18 @@ export default function Checkout({ user, website }) {
 
   if (!ready) return <main className="checkout-page"><p role="status">Loading your bag…</p></main>;
 
-  if (isSubmitted) {
+  // A new item in the bag means a new order; drop the old receipt.
+  if (submitted && cart.length) { try { sessionStorage.removeItem('loveandco-order'); } catch {} }
+  if (submitted && !cart.length) {
     return (
       <main className="checkout-page">
         <section className="checkout-confirm">
           <p className="eyebrow">ORDER RECEIVED</p>
           <h1>Thank you — your order is with us.</h1>
+          {submitted.id && <p><strong>Order #{submitted.id.slice(0, 8)}</strong> · estimated ${Number(submitted.total || 0).toFixed(2)} before shipping. Keep this number for any questions.</p>}
           <TurnaroundNote />
           <p>I’ll review your details and send a Venmo request. Production begins after that payment is received. You can follow status from your account if you used the same email.</p>
-          <Link href="/shop" className="soft-button">Continue shopping</Link>
+          <Link href="/shop" className="soft-button" onClick={() => { try { sessionStorage.removeItem('loveandco-order'); } catch {} }}>Continue shopping</Link>
         </section>
       </main>
     );
@@ -136,7 +141,7 @@ export default function Checkout({ user, website }) {
                   <div className="checkout-line-head">
                     <div>
                       <h2>{item.name}</h2>
-                      <p>{item.isCustom ? 'Quoted after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : isTieredNapkins(item) ? `$${basePrice(item).toFixed(2)} each` : `Item $${basePrice(item).toFixed(2)} each`}</p>
+                      <p>{item.isCustom ? 'Quoted after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : `$${basePrice(item).toFixed(2)} each`}</p>
                       {summarizeBundleAddons(item) && <p className="helper">{summarizeBundleAddons(item)}</p>}
                     </div>
                     <strong>{item.isCustom ? 'TBD' : `$${lineTotal(item).toFixed(2)}`}</strong>
@@ -150,10 +155,7 @@ export default function Checkout({ user, website }) {
                   <div className="checkout-line-total">
                     <div className="cart-controls">
                       <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => {
-                          const min = isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1;
-                          return item.quantity <= min ? removeItem(item.id) : updateItem(item.id, { quantity: item.quantity - 1 });
-                        }}><Dash /></button>
+                        <button type="button" aria-label={`Remove one ${item.name}`} disabled={item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1)} onClick={() => updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
                         <span>{item.quantity}</span>
                         <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
                       </div>
@@ -174,6 +176,7 @@ export default function Checkout({ user, website }) {
             <p><span>Design fees</span><b>${designTotal.toFixed(2)}</b></p>
             <p className="checkout-grand"><span>{hasCustomItem ? 'Priced total' : 'Estimated total'}</span><b>${total.toFixed(2)}</b></p>
             {hasCustomItem && <small>Custom pieces are quoted after review and are not in this total.</small>}
+            <small>Estimated before shipping. I confirm the final amount in your Venmo request.</small>
           </div>
 
           <div className="checkout-summary-card">
@@ -199,6 +202,7 @@ export default function Checkout({ user, website }) {
                 type="checkbox"
                 name="venmo_verified"
                 value="1"
+                required
                 checked={venmoVerified}
                 onChange={(event) => setVenmoVerified(event.target.checked)}
               />
@@ -215,8 +219,9 @@ export default function Checkout({ user, website }) {
 
           <div className="checkout-summary-card">
             <p className="eyebrow">SHIP TO</p>
-            <label>Delivery method<select name="delivery_method" value={delivery} onChange={(e) => setDelivery(e.target.value)}><option value="shipping">Shipping</option>{website?.info?.pickupEnabled && <option value="pickup">Local pickup</option>}</select></label>
-            {delivery === 'shipping' ? <AddressFields defaultAddress={user} /> : <p>{website?.info?.pickupInstructions}</p>}
+            {website?.info?.pickupEnabled && <label>Delivery method<select name="delivery_method" value={delivery} onChange={(e) => setDelivery(e.target.value)}><option value="shipping">Shipping</option><option value="pickup">Local pickup</option></select></label>}
+            <div hidden={delivery !== 'shipping'}><AddressFields defaultAddress={user} required={delivery === 'shipping'} /></div>
+            {delivery === 'pickup' && <p>{website?.info?.pickupInstructions}</p>}
             {user ? (delivery === 'shipping' && (
               <label className="save-address">
                 <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
@@ -226,9 +231,10 @@ export default function Checkout({ user, website }) {
               <p className="helper">Want this saved for next time? <Link href="/login?next=/checkout">Sign in</Link> first.</p>
             )}
             <label>Anything else?<textarea name="customer_notes" placeholder="Gift note, drop-off, or other details" /></label>
-            {!user && <p className="helper">Want to track this later? <Link href="/login?next=/account">Create an account</Link> with the same email.</p>}
+            {!user && <p className="helper">Want to track this later? <Link href="/login?mode=signup&next=/checkout">Create an account</Link> with the same email.</p>}
+            {paused && <p className="form-error" role="status">{website.pausedMessage || 'New orders are paused right now.'}</p>}
             {submitError && <p className="form-error" role="alert">{submitError}</p>}
-            <button className="studio-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending order…' : 'Place order'}</button>
+            <button className="studio-primary" type="submit" disabled={isSubmitting || paused}>{paused ? 'Orders paused' : isSubmitting ? 'Sending order…' : 'Place order'}</button>
             <Link className="continue-shopping" href="/shop">Back to shop</Link>
           </div>
         </aside>

@@ -13,7 +13,7 @@ export async function POST(request) {
       return Response.json({ error: 'Paste a real Instagram access token.' }, { status: 400 });
     }
     await saveInstagramToken(token);
-    revalidateTag('instagram', 'max');
+    revalidateTag('instagram', { expire: 0 });
     return Response.json({ ok: true });
   } catch (error) {
     return jsonError(error);

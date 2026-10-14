@@ -4,7 +4,7 @@ import { canonicalJson, isProductPhoto, trackingUrl, validateInfo } from '../lib
 test('Checkout fingerprints remain stable across object property order', () => { assert.equal(canonicalJson({ b: [2,1], a: { y: 1, x: 2 } }), canonicalJson({ a: { x: 2, y: 1 }, b: [2,1] })); assert.notEqual(canonicalJson([1,2]), canonicalJson([2,1])); });
 test('Product photos allow only the local library or the project public photo bucket', () => {
   const project='https://example.supabase.co';
-  assert.equal(isProductPhoto('/images/Logo.png'),true);
+  assert.equal(isProductPhoto('/images/logo-crest.png'),true);
   assert.equal(isProductPhoto(project+'/storage/v1/object/public/product-photos/00000000-0000-4000-8000-000000000000.webp',project),true);
   for(const url of ['https://evil.example/image.webp','/images/../secret.png','javascript:alert(1)',project+'/storage/v1/object/public/private/photo.webp']) assert.equal(isProductPhoto(url,project),false);
 });

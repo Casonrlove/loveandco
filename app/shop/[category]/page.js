@@ -8,6 +8,12 @@ export const revalidate = 900;
 
 export function generateStaticParams() { return CATEGORIES.map(({ id }) => ({ category: id })); }
 
+export async function generateMetadata({ params }) {
+  const category = categoryById((await params).category);
+  if (!category) return {};
+  return { title: category.name, description: category.detail };
+}
+
 export default async function ShopCategoryPage({ params }) {
   const { category } = await params;
   if (!categoryById(category)) notFound();

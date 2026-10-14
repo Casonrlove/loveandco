@@ -10,6 +10,7 @@ export default function UpdatePasswordForm() {
   const [confirmation, setConfirmation] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const submit = async (event) => {
     event.preventDefault();
@@ -22,6 +23,7 @@ export default function UpdatePasswordForm() {
       setPending(false);
       return;
     }
+    setMessage('Password updated. Taking you to your account…');
     router.replace('/account');
     router.refresh();
   };
@@ -33,6 +35,7 @@ export default function UpdatePasswordForm() {
       <label>New password<input type="password" minLength={8} name="password" required value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></label>
       <label>Confirm password<input type="password" minLength={8} name="confirmation" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
       <button className="studio-primary" disabled={pending} type="submit">{pending ? 'Updating…' : 'Update password'}</button>
     </form>
   );

@@ -2,11 +2,10 @@ import { orderOperations } from '@/lib/operations-store';
 import { validateOrderPatch } from '@/lib/studio-operations';
 import { requireStudio } from '@/lib/studio-guard';
 import { readJsonBody } from '@/lib/security';
-import { jsonError, requireAdmin } from '@/lib/require-admin';
+import { jsonError } from '@/lib/require-admin';
 import { notifyOrderUpdate } from '@/lib/notifications';
 import { refreshPromisedDates } from '@/lib/schedule-service';
-import { getOrder, getOrderNotes, persistenceMode, saveStudioOrder } from '@/lib/store';
-import { hasSupabaseConfig } from '@/lib/supabase/config';
+import { getOrder, getOrderNotes, saveStudioOrder } from '@/lib/store';
 
 function customerMessage(order, patch) {
   if (patch.fulfillment_status === 'complete') return 'Your order is complete. Thank you for supporting Love & Co.';
@@ -19,7 +18,7 @@ function customerMessage(order, patch) {
 
 export async function PATCH(request, { params }) {
   try {
-    const actor = (hasSupabaseConfig() || persistenceMode() === 'none') ? await requireAdmin() : null;
+    const actor = await requireStudio();
     const { id } = await params;
     const body = await readJsonBody(request);
     const current = await getOrder(id);

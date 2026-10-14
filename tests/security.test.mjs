@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readJsonBody, safeNextPath, validateSettings, validateSubmission } from '../lib/security.js';
+import { checkFieldLimits, readJsonBody, safeNextPath, validateSettings, validateSubmission } from '../lib/security.js';
 import { isAdminProfile } from '../lib/admin.js';
 
 test('auth redirects stay on the app origin', () => {
@@ -35,6 +35,11 @@ test('checkout rejects invalid quantities and oversized submissions', () => {
   for (const patch of [{ name: ' ' }, { email: '%' }, { name: {} }, { customer_notes: 'x'.repeat(5001) }, { items: Array(51).fill({ quantity: 1 }) }]) {
     assert.ok(validateSubmission({ ...body, ...patch }, { order: true }));
   }
+});
+
+test('account profile fields share the checkout length limits', () => {
+  assert.equal(checkFieldLimits({ full_name: 'Customer', phone: '555', venmo_username: 'customer' }), '');
+  for (const patch of [{ full_name: 'x'.repeat(121) }, { phone: 'x'.repeat(41) }, { venmo_username: 'x'.repeat(81) }, { phone: 5 }]) assert.ok(checkFieldLimits(patch));
 });
 
 test('JSON reader limits actual bytes, including bodies without content-length', async () => {

@@ -87,6 +87,7 @@ export default function AccountClient({ profile, orders }) {
         </div>
         <div className="account-actions">
           {profile.role === 'admin' && <Link className="studio-primary" href="/studio">Open studio</Link>}
+          <Link className="continue-shopping" href="/update-password">Change password</Link>
           <button type="button" className="continue-shopping" onClick={signOut}>Sign out</button>
         </div>
       </section>
@@ -120,6 +121,8 @@ export default function AccountClient({ profile, orders }) {
                 <article className="queue-order" key={order.id}>
                   <div>
                     <strong>{(order.items || []).map((item) => item.name).join(', ')}</strong>
+                    {/* ponytail: UTC calendar date; late-evening Central orders show the next day */}
+                    <p>Order #{order.id.slice(0, 8)} · Placed {formatDate(String(order.created_at).slice(0, 10))}</p>
                     <p>{statusCopy(order)}</p>
                     {order.delivery_method === 'pickup' ? <p>Local pickup · {order.pickup_instructions || 'The shop will arrange pickup with you.'}</p> : trackingUrl(order.carrier, order.tracking_number) && <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">Track shipment</a>}
                     <small>${Number(order.subtotal || 0).toFixed(2)}</small>

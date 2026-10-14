@@ -20,7 +20,7 @@ test('Customer history groups normalized emails and excludes refunded totals', (
   assert.equal(customers.length, 1); assert.equal(customers[0].orders.length, 2); assert.equal(customers[0].paid, 12);
 });
 test('Catalog and manual orders reject unsafe or invalid inputs', () => {
-  const product = { name: 'Hat', slug: 'hat', category: 'baby', image_path: '/images/Logo.png' };
+  const product = { name: 'Hat', slug: 'hat', category: 'baby', image_path: '/images/logo-crest.png' };
   validateProduct(product, ['baby']);
   for (const patch of [{ image_path: 'https://internal.test/image.png' }, { item_price: -1 }, { category: 'unknown' }]) assert.throws(() => validateProduct({ ...product, ...patch }, ['baby']));
   validateManualOrder({ name: 'A', email: 'a@example.com', item: 'Hat', price: 10, design_minutes: 0, stitch_minutes: 0 });

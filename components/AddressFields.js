@@ -10,7 +10,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
     address_line: saved.address_line || '',
     address_line2: saved.address_line2 || '',
     city: saved.city || '',
-    region: saved.region || '',
+    region: normalizeState(saved.region || ''),
     postal_code: formatZip(saved.postal_code || ''),
   });
   const [zipNote, setZipNote] = useState('');
@@ -50,7 +50,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
       address_line: next.address_line || item.label.split(',')[0],
       address_line2: next.address_line2 || '',
       city: next.city || '',
-      region: next.region || '',
+      region: normalizeState(next.region || ''),
       postal_code: formatZip(next.postal_code || ''),
     });
     setSuggestions([]);
@@ -131,7 +131,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
         ...current,
         postal_code,
         city: result.city || current.city,
-        region: result.region || current.region,
+        region: normalizeState(result.region) || current.region,
       }));
     } catch {
       setZipNote('');
@@ -150,7 +150,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
             aria-controls={open ? listId : undefined}
             aria-activedescendant={open ? `${listId}-${active}` : undefined}
             required={required}
-            autoComplete="off"
+            autoComplete="shipping address-line1"
             spellCheck="false"
             placeholder="Start typing a street address"
             value={address.address_line}
@@ -203,20 +203,18 @@ export default function AddressFields({ defaultAddress, required = true }) {
       </label>
       <div className="form-row">
         <label>State
-          <input
+          <select
             name="region"
             required={required}
-            list="us-states"
             autoComplete="shipping address-level1"
             value={address.region}
             onChange={(event) => setField('region', event.target.value)}
-            onBlur={() => setField('region', normalizeState(address.region))}
-          />
-          <datalist id="us-states">
+          >
+            <option value="">Choose a state</option>
             {US_STATES.map((state) => (
               <option key={state.value} value={state.value}>{state.label}</option>
             ))}
-          </datalist>
+          </select>
         </label>
         <label>ZIP
           <input

@@ -29,7 +29,7 @@ export default function InstagramReel({ posts }) {
           {posts.map((post) => (
             <button type="button" className="reel-item" key={post.id} onClick={() => setOpenId(post.id)} aria-label={post.caption ? post.caption.slice(0, 80) : 'Open Instagram post'}>
               {post.type === 'VIDEO' ? (
-                <video src={post.url} aria-hidden="true" muted playsInline preload="none" />
+                <video src={post.url} poster={post.poster || undefined} aria-hidden="true" muted playsInline preload="none" />
               ) : (
                 <StoreImage src={post.url} alt="" />
               )}
@@ -48,7 +48,7 @@ export default function InstagramReel({ posts }) {
           <article className="instagram-post">
             <button type="button" className="drawer-close" onClick={() => setOpenId('')} aria-label="Close">×</button>
             {open.type === 'VIDEO' ? (
-              <video src={open.url} controls playsInline />
+              <video src={open.url} poster={open.poster || undefined} controls playsInline />
             ) : (
               <StoreImage src={open.url} alt="" />
             )}

@@ -7,6 +7,7 @@ import { Bag, List, Person, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCart } from '@/lib/use-cart';
+import { fetchTurnaround } from '@/lib/turnaround-client';
 
 const links = [
   { href: '/', label: 'Home' },
@@ -32,10 +33,7 @@ export default function Header() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/turnaround', { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((value) => { if (active && value?.label) setTurnaroundLabel(value.label); })
-      .catch(() => {});
+    fetchTurnaround().then((value) => { if (active && value?.label) setTurnaroundLabel(value.label); });
     return () => { active = false; };
   }, []);
 
@@ -68,7 +66,7 @@ export default function Header() {
             <Person />
             <span>Account</span>
           </Link>
-          <Link className="bag-action" href="/shop?bag=open" aria-label={`Open bag with ${itemCount} items`}>
+          <Link className="bag-action" href={`${pathname.startsWith('/shop/') ? pathname : '/shop'}?bag=open`} aria-label={`Open bag with ${itemCount} items`}>
             <Bag />
             <span>Bag</span>
             <b>{itemCount}</b>

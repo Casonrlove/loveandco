@@ -7,7 +7,7 @@ export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const query = String(params.get('q') || '').trim();
   const session = String(params.get('session') || '').trim();
-  if (query.length < 3 || !/[A-Za-z]/.test(query)) return Response.json({ suggestions: [] });
+  if (query.length < 3 || query.length > 200 || session.length > 100 || !/[A-Za-z]/.test(query)) return Response.json({ suggestions: [] });
   await protectPublicRequest(request, 'address');
   const result = await suggestAddresses(query, session);
   return Response.json(result);
