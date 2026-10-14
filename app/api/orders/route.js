@@ -3,7 +3,7 @@ import { resolveCheckoutOrder } from '@/lib/checkout-order';
 import { readJsonBody, validateSubmission } from '@/lib/security';
 import { jsonError } from '@/lib/require-admin';
 import { normalizeState, pickAddress, validateAddress } from '@/lib/address';
-import { notifyNewOrder } from '@/lib/notifications';
+import { notifyNewOrder, notifyOrderUpdate } from '@/lib/notifications';
 import { createOrder, getCheckoutProducts, getWebsiteSettings } from '@/lib/store';
 import { getSessionProfile } from '@/lib/supabase/auth';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
@@ -72,7 +72,19 @@ export async function POST(request) {
       }).eq('id', profile.id);
       if (error) warning = 'Your order was placed, but your saved details could not be updated.';
     }
-    if (!order.replayed) await notifyNewOrder(order);
+    if (!order.replayed) {
+      await notifyNewOrder(order);
+      await notifyOrderUpdate(order, [
+        `Thank you for your order. Your order number is #${String(order.id || '').slice(0, 8)}.`,
+        '',
+        ...(order.items || []).map((item) => `- ${item.quantity} × ${item.name}`),
+        '',
+        `Estimated total before shipping: $${Number(order.subtotal || 0).toFixed(2)}.`,
+        deliveryMethod === 'pickup' ? 'Local pickup.' : 'Shipping is added to your Venmo request after review.',
+        '',
+        'I will review the details and send a Venmo request. Production begins once that payment is received.',
+      ].join('\n'), 'Your Love & Co. order is received');
+    }
     return Response.json({ order, warning });
   } catch (error) { return jsonError(error); }
 }
