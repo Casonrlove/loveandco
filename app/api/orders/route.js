@@ -3,7 +3,7 @@ import { resolveCheckoutOrder } from '@/lib/checkout-order';
 import { readJsonBody, validateSubmission } from '@/lib/security';
 import { jsonError } from '@/lib/require-admin';
 import { normalizeState, pickAddress, validateAddress } from '@/lib/address';
-import { notifyNewOrder, notifyOrderUpdate } from '@/lib/notifications';
+import { notifyNewOrder, notifyOrderUpdate, siteUrl } from '@/lib/notifications';
 import { createOrder, getCheckoutProducts, getWebsiteSettings } from '@/lib/store';
 import { getSessionProfile } from '@/lib/supabase/auth';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
@@ -19,7 +19,7 @@ export async function POST(request) {
     if (inputError) return Response.json({ error: inputError }, { status: 400 });
     const items = Array.isArray(body.items) ? body.items : [];
     if (!body.name || !body.email || !body.venmo_username || items.length === 0) {
-      return Response.json({ error: 'Name, email, Venmo username, and at least one item are required.' }, { status: 400 });
+      return Response.json({ error: 'Name, email, Venmo username, and at least one piece are required.' }, { status: 400 });
     }
     if (body.venmo_verified !== true && body.venmo_verified !== '1') {
       return Response.json({ error: 'Confirm your Venmo username is correct.' }, { status: 400 });
@@ -51,11 +51,12 @@ export async function POST(request) {
       phone: String(body.phone || '').trim(),
       venmo_username: String(body.venmo_username).trim(),
       customer_notes: String(body.customer_notes || '').trim(),
-      address_line: String(body.address_line || '').trim(),
-      address_line2: String(body.address_line2 || '').trim(),
-      city: String(body.city || '').trim(),
-      region: normalizeState(body.region),
-      postal_code: String(body.postal_code || '').trim(),
+      // Pickup hides the address fields, so anything left in them is stale.
+      address_line: deliveryMethod === 'pickup' ? '' : String(body.address_line || '').trim(),
+      address_line2: deliveryMethod === 'pickup' ? '' : String(body.address_line2 || '').trim(),
+      city: deliveryMethod === 'pickup' ? '' : String(body.city || '').trim(),
+      region: deliveryMethod === 'pickup' ? '' : normalizeState(body.region),
+      postal_code: deliveryMethod === 'pickup' ? '' : String(body.postal_code || '').trim(),
       subtotal,
       items: resolved,
     }, { key, fingerprint });
@@ -73,17 +74,19 @@ export async function POST(request) {
       if (error) warning = 'Your order was placed, but your saved details could not be updated.';
     }
     if (!order.replayed) {
-      await notifyNewOrder(order);
-      await notifyOrderUpdate(order, [
-        `Thank you for your order. Your order number is #${String(order.id || '').slice(0, 8)}.`,
+      const hasCustom = (order.items || []).some((item) => item.is_custom);
+      await Promise.all([notifyNewOrder(order), notifyOrderUpdate(order, [
+        `Thank you, I’ve received your order #${String(order.id || '').slice(0, 8)}.`,
+        deliveryMethod === 'pickup' ? 'Next, I’ll review it and send a Venmo request. Stitching starts once it’s paid, and I’ll arrange local pickup with you.' : 'Next, I’ll review it and send a Venmo request with shipping added. Stitching starts once it’s paid.',
+        ...(hasCustom ? ['Custom pieces are quoted after review.'] : []),
         '',
-        ...(order.items || []).map((item) => `- ${item.quantity} × ${item.name}`),
-        '',
-        `Estimated total before shipping: $${Number(order.subtotal || 0).toFixed(2)}.`,
-        deliveryMethod === 'pickup' ? 'Local pickup.' : 'Shipping is added to your Venmo request after review.',
-        '',
-        'I will review the details and send a Venmo request. Production begins once that payment is received.',
-      ].join('\n'), 'Your Love & Co. order is received');
+        order.subtotal ? 'Your pieces (total before shipping):' : 'Your pieces:',
+      ].join('\n'), `Your Love & Co. order #${String(order.id || '').slice(0, 8)} is received`, {
+        items: order.items || [],
+        total: order.subtotal || 0,
+        // Guests have no account yet; send them to sign up so the order attaches by email.
+        action: profile ? undefined : { href: `${siteUrl()}/login?mode=signup&next=/account`, label: 'Follow your order' },
+      })]);
     }
     return Response.json({ order, warning });
   } catch (error) { return jsonError(error); }

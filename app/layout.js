@@ -30,10 +30,9 @@ export default async function RootLayout({ children }) {
     <html lang="en" data-scroll-behavior="smooth" className={`${cormorant.variable} ${nunito.variable}`}>
       <body>
         <a className="skip-link" href="#main-content">Skip to content</a>
-        <Header />
-        {(website.announcement || !website.ordersOpen) && <aside className="shop-announcement" aria-label="Shop announcement">{website.announcement && <p>{website.announcement}</p>}{!website.ordersOpen && <p>{website.pausedMessage}</p>}</aside>}
+        <Header announcement={website.announcement} ordersOpen={website.ordersOpen} pausedMessage={website.pausedMessage} />
         <div id="main-content" tabIndex={-1}>{children}</div>
-        <Footer />
+        <Footer info={website.info} />
       </body>
     </html>
   );

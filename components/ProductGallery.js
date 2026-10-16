@@ -8,7 +8,7 @@ export default function ProductGallery(props) {
   return <Gallery key={(props.images || []).join('|')} {...props} />;
 }
 
-function Gallery({ images, name, compact, onActivate }) {
+function Gallery({ images, name, compact, priority, onActivate }) {
   const photos = (images || []).filter(Boolean);
   const scroller = useRef(null);
   const pointer = useRef(null);
@@ -81,7 +81,7 @@ function Gallery({ images, name, compact, onActivate }) {
             key={src}
             src={src}
             alt={name}
-            loading={i === 0 && !compact ? 'eager' : 'lazy'}
+            fetchPriority={i === 0 && (priority || !compact) ? 'high' : undefined}
             draggable={false}
             sizes={compact
               ? '(min-width: 1400px) 18vw, (min-width: 1100px) 23vw, (min-width: 760px) 31vw, (min-width: 360px) 47vw, 100vw'
@@ -98,7 +98,9 @@ function Gallery({ images, name, compact, onActivate }) {
               className={i === index ? 'is-active' : ''}
               onClick={(event) => { event.preventDefault(); event.stopPropagation(); goTo(i); }}
               aria-label={`Photo ${i + 1} of ${photos.length}`}
-            />
+            >
+              {!compact && <StoreImage src={src} alt="" width="64" height="64" sizes="64px" draggable={false} />}
+            </button>
           ))}
         </div>
       )}

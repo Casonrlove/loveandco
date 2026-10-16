@@ -12,6 +12,7 @@ import PhoneInput from './PhoneInput';
 import { createClient } from '@/lib/supabase/client';
 
 function statusCopy(order) {
+  if (order.payment_status === 'refunded') return 'Refunded';
   if (order.fulfillment_status === 'shipped') return order.tracking_number ? `Shipped · ${order.tracking_number}` : 'Shipped';
   if (order.fulfillment_status === 'started') return 'Started — on the machine';
   if (order.fulfillment_status === 'queued') return 'Queued for production';
@@ -20,6 +21,14 @@ function statusCopy(order) {
   if (order.payment_status === 'requested') return 'Venmo request sent';
   if (order.payment_status === 'paid') return 'Paid and in review';
   return 'Received — awaiting review';
+}
+
+// Four-step progress from the two status columns; cancelled and refunded show no steps.
+function orderStep(order) {
+  if (['shipped', 'complete'].includes(order.fulfillment_status)) return 4;
+  if (['queued', 'started'].includes(order.fulfillment_status)) return 3;
+  if (['requested', 'paid'].includes(order.payment_status)) return 2;
+  return 1;
 }
 
 export default function AccountClient({ profile, orders }) {
@@ -60,14 +69,14 @@ export default function AccountClient({ profile, orders }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         setStatus('error');
-        setMessage(result.error || 'Could not save your profile. Try again.');
+        setMessage(result.error || 'I couldn’t save your profile. Please try again.');
         return;
       }
       setStatus('saved');
       setMessage('Your profile is saved. Checkout will use these details next time.');
     } catch {
       setStatus('error');
-      setMessage('Could not save your profile. Try again.');
+      setMessage('I couldn’t save your profile. Please try again.');
     }
   };
 
@@ -115,7 +124,7 @@ export default function AccountClient({ profile, orders }) {
         <section className="studio-panel">
           <p className="eyebrow">ORDERS</p>
           <h2>What you’ve placed</h2>
-          {orders.length === 0 ? <p className="empty-copy">No orders yet. When you place one, it will appear here.</p> : (
+          {orders.length === 0 ? <p className="empty-copy">No orders yet. Once you place one, you can follow it here.</p> : (
             <div className="queue-list">
               {orders.map((order) => (
                 <article className="queue-order" key={order.id}>
@@ -123,9 +132,30 @@ export default function AccountClient({ profile, orders }) {
                     <strong>{(order.items || []).map((item) => item.name).join(', ')}</strong>
                     {/* ponytail: UTC calendar date; late-evening Central orders show the next day */}
                     <p>Order #{order.id.slice(0, 8)} · Placed {formatDate(String(order.created_at).slice(0, 10))}</p>
+                    {order.fulfillment_status !== 'cancelled' && order.payment_status !== 'refunded' && (
+                      <ol className="account-steps">
+                        {['Received', 'Venmo requested', 'In production', order.delivery_method === 'pickup' ? 'Ready' : 'Shipped'].map((label, index) => (
+                          <li key={label} aria-current={orderStep(order) === index + 1 ? 'step' : undefined}>{label}</li>
+                        ))}
+                      </ol>
+                    )}
                     <p>{statusCopy(order)}</p>
-                    {order.delivery_method === 'pickup' ? <p>Local pickup · {order.pickup_instructions || 'The shop will arrange pickup with you.'}</p> : trackingUrl(order.carrier, order.tracking_number) && <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">Track shipment</a>}
+                    {order.delivery_method === 'pickup' && <p>Local pickup · {order.pickup_instructions || 'I’ll arrange pickup with you.'}</p>}
+                    {order.delivery_method !== 'pickup' && trackingUrl(order.carrier, order.tracking_number) && <a href={trackingUrl(order.carrier, order.tracking_number)} target="_blank" rel="noopener noreferrer">Track shipment</a>}
+                    <details>
+                      <summary>Pieces</summary>
+                      <ul>
+                        {(order.items || []).map((item) => (
+                          <li key={item.id || item.name}>
+                            {item.quantity} × {item.name}
+                            {item.personalization && <span className="account-personalization">{item.personalization}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                      {order.delivery_method !== 'pickup' && <p>Ship to {[order.address_line, order.address_line2, order.city, order.region, order.postal_code].filter(Boolean).join(', ')}</p>}
+                    </details>
                     <small>${Number(order.subtotal || 0).toFixed(2)}</small>
+                    <Link href={`/contact?order=${order.id.slice(0, 8)}`}>Question about this order</Link>
                   </div>
                   <div className="completion">
                     <span>Promised</span>

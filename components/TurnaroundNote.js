@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchTurnaround } from '@/lib/turnaround-client';
 
-const fallback = { label: 'Custom-made with care', detail: 'Current timing is confirmed with every order.' };
+const fallback = { label: 'Custom-made with care', detail: 'I confirm timing with every order.' };
 
 export default function TurnaroundNote({ compact = false }) {
   const [current, setCurrent] = useState(fallback);

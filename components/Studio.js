@@ -10,7 +10,7 @@ import StudioInventory from './StudioInventory';
 import StudioOrderEditor from './StudioOrderEditor';
 import { exportOrders, Pagination, StudioCustomers, StudioInbox, StudioWebsite } from './StudioOperations';
 import { createSchedule, formatDate, toScheduleOrder, turnaround } from '@/lib/scheduler';
-import { isOverdue, orderMinutes, studioInsights } from '@/lib/studio-insights';
+import { awaitingPayment, dueThisWeek, isOverdue, orderMinutes, shippedThisWeek, studioInsights, venmoRequested } from '@/lib/studio-insights';
 import FancySelect from './FancySelect';
 import StudioCalendar from './StudioCalendar';
 
@@ -27,7 +27,7 @@ const emptyProduct = {
   active: true,
 };
 const workDays = [['Sunday', 0], ['Monday', 1], ['Tuesday', 2], ['Wednesday', 3], ['Thursday', 4], ['Friday', 5], ['Saturday', 6]];
-const orderFilters = [['active', 'Active'], ['review', 'Needs review'], ['unpaid', 'Awaiting payment'], ['minutes', 'Missing minutes'], ['production', 'In production'], ['overdue', 'Overdue'], ['queued', 'Queued'], ['started', 'Started'], ['shipped', 'Shipped'], ['complete', 'Complete'], ['cancelled', 'Cancelled'], ['all', 'All orders']];
+const orderFilters = [['active', 'Active'], ['review', 'Needs review'], ['unpaid', 'Awaiting payment'], ['minutes', 'Missing minutes'], ['production', 'In production'], ['overdue', 'Overdue'], ['due', 'Due this week'], ['requested', 'Venmo requested'], ['queued', 'Queued'], ['started', 'Started'], ['shipped', 'Shipped'], ['shippedWeek', 'Shipped this week'], ['complete', 'Complete'], ['cancelled', 'Cancelled'], ['all', 'All orders']];
 // Error pages from the host are HTML, not JSON.
 const readJson = (response) => response.json().catch(() => ({ error: 'Server error. Try again.' }));
 
@@ -52,7 +52,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   const [orders, setOrders] = useState(initialOrders);
   const [products, setProducts] = useState(initialProducts);
   const [settings, setSettings] = useState(initialSettings);
-  const [tab, rawSetTab] = useState(initialView.tab || 'board');
+  const [tab, rawSetTab] = useState(initialView.tab || 'today');
   const [orderDirty, setOrderDirty] = useState(false);
   const [page, setPage] = useState(0);
   const leaveOrder = () => !orderDirty || window.confirm('Discard unsaved order changes?');
@@ -74,8 +74,8 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
   const noticeRef = useRef(null);
   useEffect(() => { if (notice.tone === 'error') noticeRef.current?.scrollIntoView({ block: 'nearest' }); }, [notice]);
   const [openInquiries, setOpenInquiries] = useState(null);
-  // ponytail: counts the first page of inquiries only; add a count endpoint if the inbox outgrows 50.
-  useEffect(() => { fetch('/api/studio/messages').then(readJson).then((data) => data.messages && setOpenInquiries(data.messages.filter((m) => m.status !== 'resolved').length)).catch(() => {}); }, [tab]);
+  // ponytail: reads the first page of inquiries only; add a count endpoint if the inbox outgrows 50.
+  useEffect(() => { fetch('/api/studio/messages').then(readJson).then((data) => data.messages && setOpenInquiries(data.messages.filter((m) => m.status !== 'resolved'))).catch(() => {}); }, [tab]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [instagramToken, setInstagramToken] = useState('');
   const [instagramOn, setInstagramOn] = useState(instagramConnected);
@@ -94,6 +94,9 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
     if (filter === 'unpaid') return order.payment_status !== 'paid' && !['complete', 'cancelled'].includes(order.fulfillment_status);
     if (filter === 'production') return order.payment_status === 'paid' && ['queued', 'started'].includes(order.fulfillment_status);
     if (filter === 'overdue') return isOverdue(order);
+    if (filter === 'due') return dueThisWeek([order]).length > 0;
+    if (filter === 'requested') return venmoRequested([order]).length > 0;
+    if (filter === 'shippedWeek') return shippedThisWeek([order]).length > 0;
     if (filter === 'minutes') return order.payment_status === 'paid' && orderMinutes(order) === 0 && !['complete', 'cancelled', 'shipped'].includes(order.fulfillment_status);
     if (filter === 'active') return !['complete', 'cancelled'].includes(order.fulfillment_status);
     return order.fulfillment_status === filter;
@@ -262,8 +265,39 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         </div>
       </section>
 
+      {tab === 'today' && (
+        <section className="today-board" aria-label="Today">
+          {[
+            ['Due this week', dueThisWeek(orders), 'due', (order) => `Due ${formatDate(order.promised_on)}${isOverdue(order) ? ' · overdue' : ''}`, 'Nothing due in the next seven days.'],
+            ['Venmo requested', venmoRequested(orders), 'requested', (order) => `Requested · $${Number(order.subtotal || 0).toFixed(0)}`, 'No Venmo requests outstanding.'],
+            ['Awaiting payment to start', awaitingPayment(orders), 'unpaid', (order) => `Placed ${formatDate(String(order.created_at).slice(0, 10))}`, 'No orders waiting on payment.'],
+            ['Shipped this week', shippedThisWeek(orders), 'shippedWeek', (order) => order.tracking_number || 'Shipped', 'Nothing shipped this week yet.'],
+          ].map(([title, list, view, detail, empty]) => (
+            <section className="studio-panel" key={title}>
+              <div className="queue-title"><h2>{title} <span className="status-chip">{list.length}</span></h2><button type="button" className="ghost-button" onClick={() => { setFilter(view); setPage(0); setTab('orders'); }}>See all</button></div>
+              <div className="order-index">
+                {list.slice(0, 5).map((order) => (
+                  <button type="button" key={order.id} onClick={() => openOrder(order.id)}><strong>#{order.id.slice(0, 8)} · {order.name}</strong><span>{detail(order)}</span></button>
+                ))}
+                {list.length === 0 && <p className="empty-copy">{empty}</p>}
+              </div>
+            </section>
+          ))}
+          <section className="studio-panel">
+            <div className="queue-title"><h2>Open inquiries <span className="status-chip">{openInquiries?.length ?? '—'}</span></h2><button type="button" className="ghost-button" onClick={() => setTab('inbox')}>See all</button></div>
+            <div className="order-index">
+              {(openInquiries || []).slice(0, 5).map((inquiry) => (
+                <button type="button" key={inquiry.id} onClick={() => setTab('inbox')}><strong>{inquiry.name}</strong><span>{inquiry.status.replaceAll('_', ' ')} · {formatDate(String(inquiry.created_at).slice(0, 10))}</span></button>
+              ))}
+              {openInquiries?.length === 0 && <p className="empty-copy">No open inquiries. Inbox zero.</p>}
+              {!openInquiries && <p className="empty-copy">Checking the inbox…</p>}
+            </div>
+          </section>
+        </section>
+      )}
+
       <div className="studio-tabs">
-        {[['board', 'Work queue'], ['orders', 'Orders'], ['products', 'Products'], ['customers', 'Customers'], ['inbox', 'Inquiries'], ['website', 'Website'], ['inventory', 'Inventory'], ['add', 'Add order'], ['settings', 'Availability & Instagram']].map(([id, label]) => (
+        {[['today', 'Today'], ['board', 'Work queue'], ['orders', 'Orders'], ['products', 'Products'], ['customers', 'Customers'], ['inbox', 'Inquiries'], ['website', 'Website'], ['inventory', 'Inventory'], ['add', 'Add order'], ['settings', 'Availability & Instagram']].map(([id, label]) => (
           <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
         ))}
         <button type="button" className="active-soft" onClick={() => setCalendarOpen(true)}>Calendar</button>
@@ -275,7 +309,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
         <button type="button" onClick={() => { setFilter('unpaid'); setTab('orders'); }}><span>Waiting on Venmo</span><strong>{insights.unpaid}</strong><small>${insights.pendingTotal.toFixed(0)}</small></button>
         <button type="button" onClick={() => { setFilter('production'); setTab('orders'); }}><span>In production</span><strong>{insights.production}</strong></button>
         <button type="button" onClick={() => { setFilter('overdue'); setTab('orders'); }}><span>Overdue</span><strong>{insights.overdue}</strong></button>
-        <button type="button" onClick={() => setTab('inbox')}><span>Open inquiries</span><strong>{openInquiries ?? '—'}</strong></button>
+        <button type="button" onClick={() => setTab('inbox')}><span>Open inquiries</span><strong>{openInquiries?.length ?? '—'}</strong></button>
         <button type="button" onClick={() => { setFilter('minutes'); setTab('orders'); }}><span>Missing minutes</span><strong>{insights.missingMinutes}</strong></button>
         <button type="button" onClick={() => setCalendarOpen(true)}><span>This week booked</span><strong>{insights.weekPct}%</strong><small>{insights.weekUsed}/{insights.weekCap || 0} min</small></button>
         <button type="button" onClick={() => setCalendarOpen(true)}><span>Next open night</span><strong>{insights.nextOpen ? formatDate(insights.nextOpen) : '—'}</strong><small>{insights.nextOpenMinutes} min free</small></button>
@@ -516,7 +550,7 @@ export default function Studio({ initialOrders, initialProducts, initialSettings
             <div className="product-admin-list">
               {products.map((product) => (
                 <article key={product.id}>
-                  <StoreImage src={product.image} alt="" />
+                  <StoreImage src={product.image} alt="" sizes="88px" />
                   <div>
                     <strong>{product.name}</strong>
                     <p>{CATEGORIES.find((category) => category.id === product.category)?.name} · ${itemTotal(product).toFixed(2)} · {product.design_minutes}m / {product.stitch_minutes}m · {product.active ? 'live' : 'hidden'}</p>

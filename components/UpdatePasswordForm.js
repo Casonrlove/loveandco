@@ -15,7 +15,7 @@ export default function UpdatePasswordForm() {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    if (password !== confirmation) return setError('The passwords do not match.');
+    if (password !== confirmation) return setError('The passwords don’t match. Type the same password in both fields.');
     setPending(true);
     const { error: authError } = await createClient().auth.updateUser({ password });
     if (authError) {

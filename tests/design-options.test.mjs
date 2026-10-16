@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   NAME_WAIVER,
   buildDesignProof,
+  formatThreeLetterMonogram,
+  summarizeDesign,
   hasDesignSelections,
   proofRows,
   validateDesignItem,
@@ -162,4 +164,40 @@ test('baby bundles require a theme and treat customization as included', () => {
     }),
     null,
   );
+});
+
+test('buildDesignProof caps the name at 60 characters', () => {
+  const long = 'A'.repeat(80);
+  const proof = buildDesignProof({ wantsDesign: true, designName: long, nameVerified: true, nameVerifiedValue: long });
+  assert.equal(proof.designName.length, 60);
+  assert.equal(proof.nameVerifiedValue.length, 60);
+});
+
+test('3-letter monogram stitches First Last Middle from letters only', () => {
+  assert.equal(formatThreeLetterMonogram({ monogramFirst: 'm', monogramMiddle: 'j', monogramLast: 's' }), 'M S J');
+  assert.equal(formatThreeLetterMonogram({ monogramFirst: 'a1', monogramMiddle: '7' }), 'A');
+  assert.equal(formatThreeLetterMonogram({}), '');
+});
+
+test('"Stitched as" summary shows the stitched order, napkin text, and labels', () => {
+  const summary = summarizeDesign({ monogram: '3-letter', monogramFirst: 'm', monogramMiddle: 'j', monogramLast: 's', threadColor: 'navy-blue' });
+  assert.equal(summary, 'Monogram: M S J (First Last Middle)\nColor: Navy blue');
+  assert.equal(summarizeDesign({ monogram: '3-letter' }), 'Monogram: 3-letter monogram');
+  assert.equal(summarizeDesign({ napkinColor: 'natural', designName: 'the Smiths' }), 'Napkin: Natural linen\nEmbroider: the Smiths');
+  assert.equal(summarizeDesign({ towelLetter: 's' }), 'Letter: S');
+});
+
+test('verified name falls back to the stitched name and needs a name to count', () => {
+  const proof = buildDesignProof({ wantsDesign: true, designName: '  Ana  ', nameVerified: true }, { now: 'N' });
+  assert.equal(proof.nameVerifiedValue, 'Ana');
+  assert.equal(proof.nameWaiverText, NAME_WAIVER);
+  const blank = buildDesignProof({ wantsDesign: true, designName: ' ', nameVerified: true }, { now: 'N' });
+  assert.equal(blank.nameVerified, false);
+  assert.equal(blank.nameVerifiedAt, null);
+  assert.equal(blank.nameWaiverText, '');
+});
+
+test('towel letter must be a letter and napkin colour is checked before thread', () => {
+  assert.equal(validateDesignItem({ slug: 'monogram-towel', towelLetter: '7', threadColor: 'gold' }), 'Choose 1 letter for the monogram towel.');
+  assert.equal(validateDesignItem({ slug: 'wedding-cocktail-napkins', threadColor: 'mint', designName: 'Us', nameVerified: true, nameVerifiedValue: 'Us' }), 'Choose a napkin color.');
 });

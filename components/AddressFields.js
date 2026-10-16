@@ -85,7 +85,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
         setSuggestions(next);
         setActive(0);
         setOpen(next.length > 0);
-        setStatus(next.length ? '' : 'No matching addresses.');
+        setStatus(next.length ? '' : 'No matching addresses. Enter your address below.');
       } catch {
         if (ticket !== request.current) return;
         setSuggestions([]);
@@ -123,7 +123,7 @@ export default function AddressFields({ defaultAddress, required = true }) {
       const response = await fetch(`/api/zip/${zip5}`);
       const result = await response.json().catch(() => ({}));
       if (!result.found) {
-        setZipNote('We couldn’t confirm this ZIP. Double-check city and state.');
+        setZipNote('I couldn’t confirm this ZIP. Double-check the city and state.');
         return;
       }
       setZipNote('');
@@ -183,11 +183,10 @@ export default function AddressFields({ defaultAddress, required = true }) {
         )}
         {status && <p className="helper" role="status">{status}</p>}
       </div>
-      <label>Apt / unit
+      <label>Apt / unit (optional)
         <input
           name="address_line2"
           autoComplete="shipping address-line2"
-          placeholder="Optional"
           value={address.address_line2}
           onChange={(event) => setField('address_line2', event.target.value)}
         />

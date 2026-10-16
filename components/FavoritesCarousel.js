@@ -11,8 +11,8 @@ export default function FavoritesCarousel({ items }) {
   const count = items.length;
 
   if (!count) return null;
-  const visibleCount = Math.min(3, count);
-  const visible = Array.from({ length: visibleCount }, (_, offset) => items[(index + offset) % count]);
+  // All slides render (rotated) so phones get a swipe row; desktop CSS shows the first three.
+  const visible = Array.from({ length: count }, (_, offset) => items[(index + offset) % count]);
 
   const go = (next) => setIndex((next + count) % count);
 
@@ -22,9 +22,9 @@ export default function FavoritesCarousel({ items }) {
     >
       <div className="favorites-stage">
         <div className="favorites-track">
-          {visible.map((item) => (
+          {visible.map((item, i) => (
             <Link className="favorites-slide" href={item.href} key={item.href}>
-              <StoreImage src={item.image} alt={item.name} width="600" height="600" loading="lazy" sizes="(min-width: 640px) 30vw, 100vw" />
+              <StoreImage src={item.image} alt={item.name} width="600" height="600" loading={i === 0 ? 'eager' : 'lazy'} sizes="(min-width: 640px) 30vw, 100vw" />
               <div className="favorites-slide-copy">
                 <h3>{item.name}</h3>
                 <span>{item.price}</span>

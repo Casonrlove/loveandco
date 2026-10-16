@@ -2,9 +2,9 @@
 
 import { ChevronDown } from 'react-bootstrap-icons';
 
-export default function FancySelect({ value, onChange, options, placeholder = 'Choose…', required = false, compact = false, name, 'aria-label': ariaLabel }) {
+export default function FancySelect({ value, onChange, options, placeholder = 'Choose…', required = false, name, 'aria-label': ariaLabel }) {
   return (
-    <span className={`fancy-select${compact ? ' is-compact' : ''}`}>
+    <span className="fancy-select">
       <select className="fancy-select-trigger" name={name} value={value ?? ''} required={required}
         aria-label={ariaLabel} onChange={(event) => {
           const selected = options.find((option) => String(option.value) === event.target.value);

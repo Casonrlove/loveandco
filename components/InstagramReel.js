@@ -21,9 +21,9 @@ export default function InstagramReel({ posts }) {
   const open = posts.find((post) => post.id === openId);
 
   return (
-    <section className="feature-reel">
+    <section className="feature-reel" id="instagram">
       <p className="eyebrow">INSTAGRAM</p>
-      <h2>@{INSTAGRAM_USERNAME}</h2>
+      <h2><a href={INSTAGRAM_PROFILE} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_USERNAME}</a></h2>
       {posts.length > 0 ? (
         <div className="reel">
           {posts.map((post) => (
@@ -37,9 +37,10 @@ export default function InstagramReel({ posts }) {
           ))}
         </div>
       ) : (
-        <p className="instagram-empty-copy">
-          See the latest on <a href={INSTAGRAM_PROFILE} target="_blank" rel="noopener noreferrer">@{INSTAGRAM_USERNAME}</a>.
-        </p>
+        <div className="instagram-empty-copy">
+          <p>New stitches land here first.</p>
+          <a className="outline-button" href={INSTAGRAM_PROFILE} target="_blank" rel="noopener noreferrer">Follow on Instagram</a>
+        </div>
       )}
 
       {open && (

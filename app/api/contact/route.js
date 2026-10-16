@@ -11,7 +11,7 @@ export async function POST(request) {
     const inputError = validateSubmission(body);
     if (inputError) return Response.json({ error: inputError }, { status: 400 });
     if (!body.name || !body.email || !body.message) {
-      return Response.json({ error: 'Name, email, and message are required.' }, { status: 400 });
+      return Response.json({ error: 'Add your name, email, and message, then send it again.' }, { status: 400 });
     }
     // Limit only submissions that could be saved, so junk requests cannot use up the budget.
     await protectPublicRequest(request, 'contact');

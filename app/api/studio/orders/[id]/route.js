@@ -5,14 +5,21 @@ import { readJsonBody } from '@/lib/security';
 import { jsonError } from '@/lib/require-admin';
 import { notifyOrderUpdate } from '@/lib/notifications';
 import { refreshPromisedDates } from '@/lib/schedule-service';
+import { trackingUrl } from '@/lib/operations-utils';
+import { formatDate } from '@/lib/scheduler';
 import { getOrder, getOrderNotes, saveStudioOrder } from '@/lib/store';
 
 function customerMessage(order, patch) {
+  if (patch.fulfillment_status === 'cancelled') return 'Your order has been cancelled. Reply to this email if that’s unexpected.';
+  if (patch.payment_status === 'refunded') return 'I’ve sent your Venmo refund. Reply to this email if you don’t see it.';
   if (patch.fulfillment_status === 'complete') return 'Your order is complete. Thank you for supporting Love & Co.';
-  if (patch.payment_status === 'requested') return 'I’ve sent your Venmo request. Production begins after payment is received.';
-  if (patch.payment_status === 'paid') return `Payment is confirmed. Your project is on the production calendar${order.promised_on ? ` for completion around ${order.promised_on}` : ''}.`;
-  if (patch.fulfillment_status === 'started') return 'I’ve started your order.';
-  if (patch.fulfillment_status === 'shipped') return order.tracking_number ? `Your order has shipped. Tracking: ${order.tracking_number}` : 'Your order has shipped.';
+  if (patch.payment_status === 'requested') return 'I’ve sent your Venmo request. Stitching starts once it’s paid.';
+  if (patch.payment_status === 'paid') return `Your payment is confirmed, thank you. Your order is on my calendar${order.promised_on ? ` to be finished around ${formatDate(order.promised_on)}` : ''}.`;
+  if (patch.fulfillment_status === 'started') return 'I’ve started stitching your order. I’ll email you again when it’s finished.';
+  if (patch.fulfillment_status === 'shipped') {
+    // The tracking link rides on the email's action button.
+    return order.tracking_number ? `Your order has shipped. Tracking: ${order.tracking_number}` : 'Your order has shipped and is on its way to you.';
+  }
   return '';
 }
 
@@ -37,7 +44,9 @@ export async function PATCH(request, { params }) {
     }
     const changed = Object.fromEntries(Object.entries(patch).filter(([key, value]) => value !== current[key]));
     const message = warning ? '' : customerMessage(next || order, changed);
-    const notification = message ? await notifyOrderUpdate(next || order, message) : { status: 'skipped' };
+    const target = next || order;
+    const tracking = changed.fulfillment_status === 'shipped' && trackingUrl(target.carrier, target.tracking_number);
+    const notification = message ? await notifyOrderUpdate(target, message, undefined, tracking ? { action: { href: tracking, label: 'Track your package' } } : {}) : { status: 'skipped' };
     return Response.json({ order: next || order, notification, warning });
   } catch (error) {
     return jsonError(error);

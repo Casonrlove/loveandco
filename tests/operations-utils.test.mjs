@@ -10,3 +10,11 @@ test('Product photos allow only the local library or the project public photo bu
 });
 test('Carrier links encode tracking input and do not accept arbitrary redirects', () => { assert.ok(trackingUrl('ups','a&next=evil').includes('a%26next%3Devil')); assert.equal(trackingUrl('evil','123'),null); });
 test('Shop information is bounded and pickup requires instructions', () => { assert.throws(()=>validateInfo({pickupEnabled:true})); assert.throws(()=>validateInfo({contactEmail:'not-email'})); assert.equal(validateInfo({pickupEnabled:true,pickupInstructions:'By appointment'}).pickupEnabled,true); assert.equal(validateInfo({secret:'no'}).secret,undefined); });
+test('Shipped email links each carrier and skips missing tracking', () => {
+  assert.equal(trackingUrl('usps', '9400 1'), 'https://tools.usps.com/go/TrackConfirmAction?tLabels=9400%201');
+  assert.equal(trackingUrl('ups', '1Z9'), 'https://www.ups.com/track?tracknum=1Z9');
+  assert.equal(trackingUrl('fedex', '77'), 'https://www.fedex.com/fedextrack/?trknbr=77');
+  assert.equal(trackingUrl('dhl', 'JD1'), 'https://www.dhl.com/global-en/home/tracking.html?tracking-id=JD1');
+  for (const tracking of [null, undefined, '']) assert.equal(trackingUrl('ups', tracking), null);
+  assert.equal(trackingUrl(null, '123'), null);
+});

@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Shop from '@/components/Shop';
 import { CATEGORIES, categoryById } from '@/lib/catalog';
@@ -18,9 +17,5 @@ export default async function ShopCategoryPage({ params }) {
   const { category } = await params;
   if (!categoryById(category)) notFound();
   const products = await getPublicProducts();
-  return (
-    <Suspense>
-      <Shop category={category} products={products} />
-    </Suspense>
-  );
+  return <Shop category={category} products={products} />;
 }

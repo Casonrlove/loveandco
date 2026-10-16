@@ -5,7 +5,7 @@ import { useState } from 'react';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
 
-export default function Contact() {
+export default function Contact({ order = '' }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -25,7 +25,7 @@ export default function Contact() {
       if (!response.ok) throw new Error([400, 429].includes(response.status) ? result.error : '');
       setSent(true);
     } catch (failure) {
-      setError(failure.message || 'Your message could not be sent. Please email loveandcoembroidery@gmail.com.');
+      setError(failure.message || 'Your message didn’t send. Please email me at loveandcoembroidery@gmail.com.');
     } finally {
       setIsSubmitting(false);
     }
@@ -43,15 +43,15 @@ export default function Contact() {
         <div className="auth-card" role="status">
           <p className="eyebrow">MESSAGE SENT</p>
           <h2>Thank you — I’ll be in touch soon.</h2>
-          <p className="helper">Replies usually come within a day. In the meantime, <Link href="/shop">browse the shop</Link>.</p>
+          <p className="helper">I usually reply within a day. In the meantime, <Link href="/shop">browse the shop</Link>.</p>
         </div>
       ) : (
         <form className="order-form contact-form" onSubmit={submit}>
           <label className="form-trap" aria-hidden="true">Company website<input name="company_website" tabIndex={-1} autoComplete="off" /></label>
           <label>Name<input name="name" required autoComplete="name" /></label>
-          <label>Email address<input type="email" name="email" required autoComplete="email" /></label>
-          <label>Phone number<PhoneInput name="phone" /></label>
-          <label>Details of your request<textarea name="message" rows="5" required placeholder="Tell me about your idea, item, or question." /></label>
+          <label>Email<input type="email" name="email" required autoComplete="email" /></label>
+          <label>Phone (optional)<PhoneInput name="phone" /></label>
+          <label>Details of your request<textarea name="message" rows="5" required defaultValue={order ? `Order #${order}: ` : undefined} placeholder="Tell me about your idea, a piece, or your question." /></label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="studio-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Sending…' : 'Send message'}</button>
         </form>

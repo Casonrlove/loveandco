@@ -2,14 +2,16 @@
 
 import StoreImage from './StoreImage';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { Dash, Plus } from 'react-bootstrap-icons';
-import { CART_EVENT, NAPKIN_MIN_QTY, addonTotal, basePrice, cartTotal, designFee, isPerPersonPackage, isTieredNapkins, lineTotal, orderDesignFee, summarizeBundleAddons } from '@/lib/catalog';
+import { CART_EVENT, NAPKIN_MIN_QTY, addonTotal, basePrice, cartTotal, designFee, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, lineTotal, orderDesignFee, summarizeBundleAddons } from '@/lib/catalog';
 import { useCart } from '@/lib/use-cart';
-import { hasAddressInput, validateAddress } from '@/lib/address';
+import { hasAddressInput, pickAddress, validateAddress } from '@/lib/address';
 import { summarizeDesign, validateDesignItem } from '@/lib/design-options';
 import AddressFields from './AddressFields';
+import DesignFields from './DesignFields';
 import PhoneInput from './PhoneInput';
 import TurnaroundNote from './TurnaroundNote';
 
@@ -20,6 +22,8 @@ export default function Checkout({ user, website }) {
   const [delivery, setDelivery] = useState('shipping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [errorItemId, setErrorItemId] = useState(null);
+  const errorRef = useRef(null);
   const [submitted, setSubmitted] = useState(() => { try { return JSON.parse(sessionStorage.getItem('loveandco-order') || 'null'); } catch { return null; } });
   const [venmo, setVenmo] = useState(user?.venmo_username || '');
   const [venmoVerified, setVenmoVerified] = useState(false);
@@ -36,14 +40,23 @@ export default function Checkout({ user, website }) {
 
   const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
+  const lineError = cart.some((item) => item.id === errorItemId);
+
+  useEffect(() => {
+    if (!submitError) return;
+    errorRef.current?.scrollIntoView({ block: 'center' });
+    errorRef.current?.focus({ preventScroll: true });
+  }, [submitError, errorItemId]);
 
   const submitOrder = async (event) => {
     event.preventDefault();
     if (!cart.length || submitting.current) return;
     const form = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const designError = cart.map((item) => { const error = validateDesignItem(item); return error && `${item.name}: ${error}`; }).find(Boolean);
-    if (designError) {
-      setSubmitError(designError);
+    setErrorItemId(null);
+    const designItem = cart.find((item) => validateDesignItem(item));
+    if (designItem) {
+      setErrorItemId(designItem.id);
+      setSubmitError(validateDesignItem(designItem));
       return;
     }
     const addressError = delivery === 'shipping' ? validateAddress(form) : null;
@@ -52,7 +65,7 @@ export default function Checkout({ user, website }) {
       return;
     }
     if (!String(form.venmo_username || '').trim() || form.venmo_verified !== '1') {
-      setSubmitError('Confirm your Venmo username is correct.');
+      setSubmitError('Enter your Venmo username and check the box to confirm it.');
       return;
     }
     submitting.current = true;
@@ -73,34 +86,54 @@ export default function Checkout({ user, website }) {
         body: payload,
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Your order could not be sent.');
+      if (!response.ok) throw new Error(result.error || 'Your order didn’t go through. Please try again.');
       retry.current = null;
       try { sessionStorage.removeItem('loveandco-checkout-retry'); } catch {}
-      const receipt = { id: result.order?.id || '', total };
+      const receipt = {
+        id: result.order?.id || '',
+        total,
+        email: form.email,
+        delivery,
+        address: pickAddress(form),
+        items: cart.map(({ name, quantity }) => ({ name, quantity })),
+        warning: result.warning,
+      };
       try { sessionStorage.setItem('loveandco-order', JSON.stringify(receipt)); } catch {}
-      setSubmitted(receipt);
-      setCart([]);
+      // One commit for both, so the bag never renders empty before the receipt.
+      flushSync(() => { setSubmitted(receipt); setCart([]); });
     } catch (error) {
-      setSubmitError(error.message || 'Your order could not be sent. Please try again or contact us directly.');
+      setSubmitError(error.message || 'Your order didn’t go through. Please try again, or contact me directly.');
     } finally {
       submitting.current = false;
       setIsSubmitting(false);
     }
   };
 
+  // A new item in the bag means a new order; drop the old receipt (state adjusted during render).
+  if (submitted && cart.length) {
+    try { sessionStorage.removeItem('loveandco-order'); } catch {}
+    setSubmitted(null);
+  }
+
   if (!ready) return <main className="checkout-page"><p role="status">Loading your bag…</p></main>;
 
-  // A new item in the bag means a new order; drop the old receipt.
-  if (submitted && cart.length) { try { sessionStorage.removeItem('loveandco-order'); } catch {} }
   if (submitted && !cart.length) {
     return (
       <main className="checkout-page">
         <section className="checkout-confirm">
           <p className="eyebrow">ORDER RECEIVED</p>
-          <h1>Thank you — your order is with us.</h1>
+          <h1>Thank you — your order is with me.</h1>
           {submitted.id && <p><strong>Order #{submitted.id.slice(0, 8)}</strong> · estimated ${Number(submitted.total || 0).toFixed(2)} before shipping. Keep this number for any questions.</p>}
+          {submitted.items?.length > 0 && (
+            <ul>{submitted.items.map((item, index) => <li key={index}>{item.name} × {item.quantity}</li>)}</ul>
+          )}
+          {submitted.delivery === 'pickup' ? <p>Local pickup</p> : submitted.address?.address_line && (
+            <p>Ship to {[submitted.address.address_line, submitted.address.address_line2, submitted.address.city, `${submitted.address.region} ${submitted.address.postal_code}`].filter(Boolean).join(', ')}</p>
+          )}
+          {submitted.email && <p>A receipt was sent to {submitted.email}.</p>}
+          {submitted.warning && <p className="form-error" role="status">{submitted.warning}</p>}
           <TurnaroundNote />
-          <p>I’ll review your details and send a Venmo request. Production begins after that payment is received. You can follow status from your account if you used the same email.</p>
+          <p>I’ll review your details and send a Venmo request. Stitching starts once it’s paid. You can <Link href={user ? '/account' : '/login?mode=signup&next=/account'}>follow status from your account</Link> if you used the same email. Questions? <Link href="/contact">Contact me</Link>.</p>
           <Link href="/shop" className="soft-button" onClick={() => { try { sessionStorage.removeItem('loveandco-order'); } catch {} }}>Continue shopping</Link>
         </section>
       </main>
@@ -125,18 +158,23 @@ export default function Checkout({ user, website }) {
       <section className="page-intro">
         <p className="eyebrow">CHECKOUT</p>
         <h1>Complete your order</h1>
-        <p>Review your bag and send your details. Custom design notes were saved when you added each piece. I only take Venmo after I review the order.</p>
+        <ol className="checkout-steps">
+          <li>Send your order</li>
+          <li>I review it and send a Venmo request</li>
+          <li>Stitching starts once that’s paid</li>
+        </ol>
         <TurnaroundNote />
       </section>
 
       <form className="checkout-grid" onSubmit={submitOrder}>
+        <p className="checkout-mobile-total"><span>{hasCustomItem ? 'Priced total' : 'Estimated total'}</span> <b>${total.toFixed(2)}</b></p>
         <section className="checkout-items">
           <p className="eyebrow">YOUR PIECES</p>
           {cart.map((item) => {
             const fee = designFee(item);
             return (
               <article className="checkout-line" key={item.id}>
-                <StoreImage src={item.image} alt="" />
+                <StoreImage src={item.image} alt="" sizes="(min-width: 1100px) 315px, 80px" />
                 <div className="checkout-line-copy">
                   <div className="checkout-line-head">
                     <div>
@@ -152,6 +190,19 @@ export default function Checkout({ user, website }) {
                   {(item.wantsDesign || item.isCustom) && summarizeDesign(item) && (
                     <p className="checkout-design-summary">{summarizeDesign(item)}</p>
                   )}
+                  {!item.isCustom && item.wantsDesign && (
+                    <details className="checkout-edit-design" open={errorItemId === item.id && Boolean(submitError) ? true : undefined}>
+                      <summary>Edit design</summary>
+                      <DesignFields
+                        item={item}
+                        onChange={(next) => updateItem(item.id, next)}
+                        showTheme={isBabyBundle(item)}
+                        napkinFields={isTieredNapkins(item)}
+                        towelFields={isMonogramTowel(item)}
+                      />
+                    </details>
+                  )}
+                  {errorItemId === item.id && submitError && <p className="form-error" role="alert" tabIndex={-1} ref={errorRef}>{submitError}</p>}
                   <div className="checkout-line-total">
                     <div className="cart-controls">
                       <div>
@@ -169,21 +220,44 @@ export default function Checkout({ user, website }) {
         </section>
 
         <aside className="checkout-side">
-          <p className="eyebrow">DETAILS</p>
           <div className="checkout-summary-card">
             <p className="eyebrow">SUMMARY</p>
-            <p><span>Items</span><b>${itemsTotal.toFixed(2)}</b></p>
+            <p><span>Pieces</span><b>${itemsTotal.toFixed(2)}</b></p>
             <p><span>Design fees</span><b>${designTotal.toFixed(2)}</b></p>
             <p className="checkout-grand"><span>{hasCustomItem ? 'Priced total' : 'Estimated total'}</span><b>${total.toFixed(2)}</b></p>
             {hasCustomItem && <small>Custom pieces are quoted after review and are not in this total.</small>}
-            <small>Estimated before shipping. I confirm the final amount in your Venmo request.</small>
+            <small>Estimated before shipping.</small>
           </div>
 
           <div className="checkout-summary-card">
             <p className="eyebrow">YOUR DETAILS</p>
+            {!user && <p className="helper">Have an account? <Link href="/login?next=/checkout">Sign in</Link> to prefill and track this order. · <Link href="/login?mode=signup&next=/checkout">Create one</Link></p>}
             <label>Name<input name="name" required autoComplete="name" defaultValue={user?.full_name || ''} /></label>
             <label>Email<input type="email" name="email" required autoComplete="email" defaultValue={user?.email || ''} /></label>
-            <label>Phone<PhoneInput name="phone" defaultValue={user?.phone || ''} /></label>
+            <label>Phone (optional)<PhoneInput name="phone" defaultValue={user?.phone || ''} /></label>
+          </div>
+
+          <div className="checkout-summary-card">
+            <p className="eyebrow">SHIP TO</p>
+            {website?.info?.pickupEnabled && (
+              <fieldset className="checkout-delivery">
+                <legend>Delivery method</legend>
+                <label className="save-address"><input type="radio" name="delivery_method" value="shipping" checked={delivery === 'shipping'} onChange={(e) => setDelivery(e.target.value)} /><span>Shipping</span></label>
+                <label className="save-address"><input type="radio" name="delivery_method" value="pickup" checked={delivery === 'pickup'} onChange={(e) => setDelivery(e.target.value)} /><span>Local pickup</span></label>
+              </fieldset>
+            )}
+            <fieldset className="checkout-address" disabled={delivery !== 'shipping'} hidden={delivery !== 'shipping'}><AddressFields defaultAddress={user} required={delivery === 'shipping'} /></fieldset>
+            {delivery === 'pickup' && <p>{website?.info?.pickupInstructions}</p>}
+            {user && delivery === 'shipping' && (
+              <label className="save-address">
+                <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
+                <span>Save this address to my account</span>
+              </label>
+            )}
+          </div>
+
+          <div className="checkout-summary-card">
+            <p className="eyebrow">PAYMENT</p>
             <label>Venmo username
               <input
                 name="venmo_username"
@@ -214,27 +288,13 @@ export default function Checkout({ user, website }) {
                 <span>Save this Venmo username to my account</span>
               </label>
             )}
-            <p className="helper">I’ll send the Venmo request here after I review your order.</p>
           </div>
 
           <div className="checkout-summary-card">
-            <p className="eyebrow">SHIP TO</p>
-            {website?.info?.pickupEnabled && <label>Delivery method<select name="delivery_method" value={delivery} onChange={(e) => setDelivery(e.target.value)}><option value="shipping">Shipping</option><option value="pickup">Local pickup</option></select></label>}
-            <div hidden={delivery !== 'shipping'}><AddressFields defaultAddress={user} required={delivery === 'shipping'} /></div>
-            {delivery === 'pickup' && <p>{website?.info?.pickupInstructions}</p>}
-            {user ? (delivery === 'shipping' && (
-              <label className="save-address">
-                <input type="checkbox" name="save_address" value="1" defaultChecked={hasAddressInput(user)} />
-                <span>Save this address to my account</span>
-              </label>
-            )) : (
-              <p className="helper">Want this saved for next time? <Link href="/login?next=/checkout">Sign in</Link> first.</p>
-            )}
             <label>Anything else?<textarea name="customer_notes" placeholder="Gift note, drop-off, or other details" /></label>
-            {!user && <p className="helper">Want to track this later? <Link href="/login?mode=signup&next=/checkout">Create an account</Link> with the same email.</p>}
-            {paused && <p className="form-error" role="status">{website.pausedMessage || 'New orders are paused right now.'}</p>}
-            {submitError && <p className="form-error" role="alert">{submitError}</p>}
-            <button className="studio-primary" type="submit" disabled={isSubmitting || paused}>{paused ? 'Orders paused' : isSubmitting ? 'Sending order…' : 'Place order'}</button>
+            {paused && <p className="form-error" role="status">{website.pausedMessage || 'New orders are paused right now. Please check back soon.'}</p>}
+            {submitError && !lineError && <p className="form-error" role="alert" tabIndex={-1} ref={errorRef}>{submitError}</p>}
+            <button className="studio-primary" type="submit" disabled={isSubmitting || paused}>{paused ? 'Orders paused' : isSubmitting ? 'Sending order…' : hasCustomItem ? 'Send order' : `Send order · $${total.toFixed(2)}`}</button>
             <Link className="continue-shopping" href="/shop">Back to shop</Link>
           </div>
         </aside>

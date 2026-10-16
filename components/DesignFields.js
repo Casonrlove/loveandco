@@ -1,6 +1,7 @@
 'use client';
 
-import { BUNDLE_THEME_OPTIONS, COLOR_OPTIONS, MONOGRAM_OPTIONS, MONOGRAM_ORDER_NOTE, NAPKIN_COLOR_OPTIONS, NAPKIN_EXTRA_COLOR_NOTE, NAME_SPELLING_NOTE, NAME_WAIVER_LABEL, PLACEMENT_OPTIONS, letterOnly, requiresCustomization } from '@/lib/design-options';
+import { BUNDLE_THEME_OPTIONS, COLOR_OPTIONS, MONOGRAM_OPTIONS, MONOGRAM_ORDER_NOTE, NAME_MAX, NAPKIN_COLOR_OPTIONS, NAPKIN_EXTRA_COLOR_NOTE, NAME_SPELLING_NOTE, NAME_WAIVER_LABEL, PLACEMENT_OPTIONS, formatThreeLetterMonogram, letterOnly, requiresCustomization } from '@/lib/design-options';
+import { useId } from 'react';
 import FancySelect from './FancySelect';
 
 export const emptyDesignDraft = {
@@ -21,6 +22,22 @@ export const emptyDesignDraft = {
   nameVerifiedAt: '',
   nameVerifiedValue: '',
 };
+
+// Short option lists render as radio pills instead of a dropdown.
+function OptionPills({ legend, value, options, onChange }) {
+  const name = useId(); // unique per line so Checkout's repeated fields don't share a radio group
+  return (
+    <fieldset className="option-pills">
+      <legend>{legend}</legend>
+      {options.map((option) => (
+        <label key={option.value}>
+          <input type="radio" name={name} value={option.value} required checked={value === option.value} onChange={() => onChange(option.value)} />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
 
 export function applyDesignPatch(item, patch) {
   const next = { ...item, ...patch };
@@ -63,6 +80,7 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
             spellCheck="false"
             onChange={(event) => update({ towelLetter: letterOnly(event.target.value) })}
           />
+          <small className="design-note">Stitched as: {letterOnly(item.towelLetter) || '—'}</small>
         </label>
         <label>Thread color
           <FancySelect
@@ -79,15 +97,7 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
   if (napkinFields) {
     return (
       <div className="design-fields">
-        <label>Color of napkin
-          <FancySelect
-            required
-            value={item.napkinColor || ''}
-            onChange={(value) => update({ napkinColor: value })}
-            options={NAPKIN_COLOR_OPTIONS}
-            placeholder="Choose a napkin color"
-          />
-        </label>
+        <OptionPills legend="Napkin color" value={item.napkinColor || ''} options={NAPKIN_COLOR_OPTIONS} onChange={(value) => update({ napkinColor: value })} />
         <label>Thread color
           <FancySelect
             required
@@ -102,10 +112,11 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
           <span>What to embroider on the napkin</span>
           <textarea
             value={item.designName || ''}
+            maxLength={NAME_MAX}
             onChange={(event) => update({ designName: event.target.value })}
             placeholder="Names, date, monogram, or wording"
           />
-          <small className="design-note">{NAME_SPELLING_NOTE}</small>
+          <small className="design-note">{String(item.designName || '').length}/{NAME_MAX} · {NAME_SPELLING_NOTE}</small>
         </label>
         {String(item.designName || '').trim() && (
           <label className="name-confirm">
@@ -130,27 +141,20 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
   return (
     <div className="design-fields">
       {showTheme && (
-        <label>Theme
-          <FancySelect
-            required
-            value={item.bundleTheme || ''}
-            onChange={(value) => update({ bundleTheme: value })}
-            options={BUNDLE_THEME_OPTIONS}
-            placeholder="Choose a theme"
-          />
-        </label>
+        <OptionPills legend="Theme" value={item.bundleTheme || ''} options={BUNDLE_THEME_OPTIONS} onChange={(value) => update({ bundleTheme: value })} />
       )}
       <label className="name-field">
         <span>Name to stitch</span>
         <input
           className="name-field-input"
           value={item.designName || ''}
+          maxLength={NAME_MAX}
           onChange={(event) => update({ designName: event.target.value })}
           placeholder="Type the name"
           autoComplete="off"
           spellCheck="false"
         />
-        <small className="design-note">{NAME_SPELLING_NOTE}</small>
+        <small className="design-note">{String(item.designName || '').length}/{NAME_MAX} · {NAME_SPELLING_NOTE}</small>
       </label>
       {String(item.designName || '').trim() && (
         <label className="name-confirm">
@@ -199,6 +203,7 @@ export default function DesignFields({ item, onChange, showTheme = false, napkin
               </label>
             ))}
           </div>
+          <p className="design-note">Stitched as: {formatThreeLetterMonogram(item) || '—'}</p>
           <small className="design-note">{MONOGRAM_ORDER_NOTE}</small>
         </div>
       )}

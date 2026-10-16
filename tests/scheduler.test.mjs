@@ -62,3 +62,14 @@ test('work past the scheduling horizon gets no promised finish date', () => {
   assert.equal(schedule.results.huge.completionDate, null);
   assert.equal(turnaround(schedule).label, 'New orders are being reviewed');
 });
+
+test('formatDate reads a date key as that local day', () => {
+  assert.equal(formatDate('2026-10-15'), 'Thu, Oct 15');
+  // Paid email only calls it when promised_on is set; bad input surfaces rather than throws.
+  assert.equal(formatDate(null), 'Invalid Date');
+  assert.equal(formatDate('nope'), 'Invalid Date');
+});
+
+test('formatDate accepts a Date', () => {
+  assert.equal(formatDate(new Date(2026, 9, 15)), 'Thu, Oct 15');
+});

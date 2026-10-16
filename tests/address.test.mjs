@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addressFromGoogleComponents, expandRuralQuery, formatZip, isValidZip, validateAddress, validateOptionalAddress } from '../lib/address.js';
+import { addressFromGoogleComponents, expandRuralQuery, formatZip, isValidZip, pickAddress, validateAddress, validateOptionalAddress } from '../lib/address.js';
 
 test('formats ZIP and ZIP+4 while typing', () => {
   assert.equal(formatZip('3'), '3');
@@ -78,4 +78,12 @@ test('keeps apartment or unit from a Google place', () => {
   ]);
   assert.equal(parsed.address_line, '850 Greenside Drive');
   assert.equal(parsed.address_line2, 'Apt 2020');
+});
+
+test('receipt address keeps only trimmed, normalized address fields', () => {
+  assert.deepEqual(pickAddress({
+    name: 'Ana', email: 'a@x.test', notes: 'gift',
+    address_line: '  12 Main St ', address_line2: ' apartment 4 ', city: ' Franklin ', region: ' tennessee ', postal_code: '370641234',
+  }), { address_line: '12 Main St', address_line2: 'Apt 4', city: 'Franklin', region: 'TN', postal_code: '37064-1234' });
+  assert.deepEqual(pickAddress(), { address_line: '', address_line2: '', city: '', region: '', postal_code: '' });
 });

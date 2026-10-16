@@ -5,22 +5,18 @@ import StoreImage from './StoreImage';
 import { useModalFocus } from '@/lib/use-modal-focus';
 
 import { useMemo, useState } from 'react';
-import { Dash, Plus, X } from 'react-bootstrap-icons';
+import { Plus, X } from 'react-bootstrap-icons';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ADDON_QTY_OPTIONS, BUNDLE_ADDONS, CART_EVENT, CART_KEY, CATEGORIES, NAPKIN_MIN_QTY, NAPKIN_ORDER_DESIGN_FEE, NAPKIN_QTY_OPTIONS, PACKAGE_ORDER_DESIGN_FEE, PEOPLE_OPTIONS, SHOP_HUB, addonTotal, basePrice, cartTotal, designFee, emptyBundleAddons, findProduct, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, napkinUnitPrice, normalizeBundleAddons, orderDesignFee, productHref, productImages, requiresCustomization, summarizeBundleAddons } from '@/lib/catalog';
-import { lineProductId } from '@/lib/cart';
+import { usePathname, useRouter } from 'next/navigation';
+import { ADDON_QTY_OPTIONS, BUNDLE_ADDONS, CATEGORIES, FAVORITE_SLUGS, NAPKIN_MIN_QTY, NAPKIN_ORDER_DESIGN_FEE, NAPKIN_QTY_OPTIONS, PACKAGE_ORDER_DESIGN_FEE, PEOPLE_OPTIONS, SHOP_HUB, addonTotal, basePrice, designFee, emptyBundleAddons, findProduct, isBabyBundle, isMonogramTowel, isPerPersonPackage, isTieredNapkins, napkinUnitPrice, normalizeBundleAddons, priceLabel, productHref, productImages, requiresCustomization } from '@/lib/catalog';
+import { lineProductId, openBag } from '@/lib/cart';
 import { useCart } from '@/lib/use-cart';
-import { summarizeDesign, validateDesignItem } from '@/lib/design-options';
+import { validateDesignItem } from '@/lib/design-options';
 import DesignFields, { designDraftFor, emptyDesignDraft } from './DesignFields';
 import FancySelect from './FancySelect';
+import FavoritesCarousel from './FavoritesCarousel';
 import ProductGallery from './ProductGallery';
 import TurnaroundNote from './TurnaroundNote';
-
-const VALID_SORTS = new Set(['featured', 'price-low', 'price-high', 'name']);
-const VALID_PRICE_FILTERS = new Set(['all', 'under-30', '30-plus']);
-// Napkins have a 10-piece minimum, so their lowest checkout price is 10 × the unit price.
-const cardPrice = (item) => basePrice(item) * (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1);
 
 export default function Shop(props) {
   const pathname = usePathname();
@@ -29,38 +25,14 @@ export default function Shop(props) {
 
 function ShopContent({ category, productKey, products }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [cart, setCart] = useCart();
-  const [bagRequested, setBagRequested] = useState(false);
-  const isBagOpen = bagRequested || searchParams.get('bag') === 'open';
-  const setIsBagOpen = (open) => {
-    setBagRequested(open);
-    if (!open && searchParams.has('bag')) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('bag');
-      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    }
-  };
-  const sortParam = searchParams.get('sort');
-  const priceFilterParam = searchParams.get('priceFilter');
-  const sort = VALID_SORTS.has(sortParam) ? sortParam : 'featured';
-  const priceFilter = VALID_PRICE_FILTERS.has(priceFilterParam) ? priceFilterParam : 'all';
-  const updateCatalogQuery = (key, value, allowed, fallback) => {
-    const params = new URLSearchParams(searchParams.toString());
-    const nextValue = allowed.has(value) ? value : fallback;
-    if (nextValue === fallback) params.delete(key);
-    else params.set(key, nextValue);
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  };
+  const [, setCart] = useCart();
   const [designDraft, setDesignDraft] = useState(() => designDraftFor(findProduct(products, productKey)));
   const [designError, setDesignError] = useState('');
   const [addingProduct, setAddingProduct] = useState(null);
   const itemDialog = useModalFocus(Boolean(addingProduct), () => setAddingProduct(null));
-  const bagDialog = useModalFocus(isBagOpen, () => setIsBagOpen(false));
   const [peopleCount, setPeopleCount] = useState(1);
   const [napkinCount, setNapkinCount] = useState(NAPKIN_MIN_QTY);
+  const [justAdded, setJustAdded] = useState(false);
 
   const categoryId = category;
   const activeCategory = CATEGORIES.find((item) => item.id === categoryId);
@@ -79,11 +51,6 @@ function ShopContent({ category, productKey, products }) {
     scrollTop();
     router.push(productHref(product));
   };
-  const bag = cart;
-  const itemCount = bag.reduce((total, item) => total + item.quantity, 0);
-  const hasCustomItem = bag.some((item) => item.isCustom);
-  const total = useMemo(() => cartTotal(bag), [bag]);
-  const packageFee = orderDesignFee(bag);
 
 
   const addToCart = (product, extras = emptyDesignDraft) => {
@@ -119,13 +86,9 @@ function ShopContent({ category, productKey, products }) {
     });
     setDesignDraft(designDraftFor(product));
     setAddingProduct(null);
-    setIsBagOpen(true);
-    if (!searchParams.get('bag')) {
-      const path = product.category && (product.slug || product.id)
-        ? productHref(product)
-        : (pathname || '/shop');
-      router.replace(`${path}?bag=open`, { scroll: false });
-    }
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1500);
+    openBag();
     return true;
   };
 
@@ -136,6 +99,11 @@ function ShopContent({ category, productKey, products }) {
     setNapkinCount(NAPKIN_MIN_QTY);
     setAddingProduct(product);
   };
+
+  // Headline price follows the design toggle so it matches the bag line.
+  const headlinePrice = (product) => (
+    <p className="item-price">${(basePrice(product) + (designDraft.wantsDesign ? designFee(product) : 0)).toFixed(2)}</p>
+  );
 
   const peoplePicker = (product) => {
     if (!isPerPersonPackage(product)) return null;
@@ -228,7 +196,7 @@ function ShopContent({ category, productKey, products }) {
                 ? `Design details are required. A $${NAPKIN_ORDER_DESIGN_FEE} design fee is added once per order.`
                 : isMonogramTowel(product)
                   ? 'Choose 1 letter and 1 thread color.'
-                  : 'Customization is included. Please choose your theme and design details. Extra outfits, burp cloths, bibs, and paci clips can be added below.'}
+                  : 'Customization is included. Choose a theme and design details, then add any extras below.'}
           </p>
           <DesignFields
             item={designDraft}
@@ -258,32 +226,30 @@ function ShopContent({ category, productKey, products }) {
     );
   };
 
-  const updateItem = (id, patch) => setCart((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
-  const removeItem = (id) => setCart((items) => items.filter((item) => item.id !== id));
 
   const visibleProducts = useMemo(() => products
     .filter((item) => item.category === categoryId)
-    .filter((item) => priceFilter === 'all' || (priceFilter === 'under-30' ? cardPrice(item) < 30 : cardPrice(item) >= 30))
-    .sort((a, b) => sort === 'price-low' ? basePrice(a) - basePrice(b) : sort === 'price-high' ? basePrice(b) - basePrice(a) : sort === 'name' ? a.name.localeCompare(b.name) : (a.sort_order || 0) - (b.sort_order || 0)), [products, categoryId, priceFilter, sort]);
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)), [products, categoryId]);
+  const counts = useMemo(() => Object.fromEntries(SHOP_HUB.map((hub) => [hub.id, products.filter((item) => item.category === hub.id).length])), [products]);
+  const siblings = activeProduct ? visibleProducts.filter((item) => item.id !== activeProduct.id).slice(0, 3) : [];
+  const moreProducts = siblings.length > 0 || !activeProduct ? siblings : FAVORITE_SLUGS
+    .map((slug) => products.find((item) => item.slug === slug))
+    .filter((item) => item && item.id !== activeProduct.id)
+    .slice(0, 3);
 
   return (
     <main className={`shop-page${activeProduct ? ' is-item' : activeCategory ? ' is-collection' : ' is-hub'}`}>
       {activeProduct ? (
         <section className="item-page">
-          <Link
-            href={activeCategory ? `/shop/${activeCategory.id}` : '/shop'}
-            onClick={(event) => {
-              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              event.preventDefault();
-              openCategory(activeCategory?.id || null);
-            }}
-          >
-            ← {activeCategory ? activeCategory.name : 'All collections'}
-          </Link>
+          <nav aria-label="Breadcrumb" className="breadcrumb">
+            <Link href="/shop">Shop</Link>
+            {activeCategory && <> › <Link href={`/shop/${activeCategory.id}`}>{activeCategory.name}</Link></>}
+            {' › '}<span aria-current="page">{activeProduct.name}</span>
+          </nav>
           <div className="item-page-layout">
             <ProductGallery images={productImages(activeProduct)} name={activeProduct.name} />
             <div className="item-page-copy">
-              <p className="eyebrow">{activeCategory?.preorder ? 'PREORDER' : 'CUSTOM EMBROIDERY'}</p>
+              {activeCategory?.preorder && <p className="eyebrow">PREORDER</p>}
               <h1>{activeProduct.name}</h1>
               <p>{activeProduct.detail}</p>
               {isPerPersonPackage(activeProduct)
@@ -292,24 +258,39 @@ function ShopContent({ category, productKey, products }) {
                   ? napkinPicker(activeProduct)
                   : isBabyBundle(activeProduct)
                     ? addonPicker(activeProduct)
-                    : <p className="item-price">${basePrice(activeProduct).toFixed(2)}</p>}
+                    : headlinePrice(activeProduct)}
               {designSection(activeProduct)}
               <TurnaroundNote />
-              {designError && <p className="form-error" role="alert">{designError}</p>}
-              <button className="studio-primary" type="button" onClick={() => addToCart(activeProduct, designDraft)}>Add to bag</button>
+              <div className="item-cta">
+                {designError && <p className="form-error" role="alert">{designError}</p>}
+                <button className={`studio-primary${justAdded ? ' is-saved' : ''}`} type="button" onClick={() => addToCart(activeProduct, designDraft)}>{justAdded ? 'Added to bag' : 'Add to bag'}</button>
+              </div>
             </div>
           </div>
+          {moreProducts.length > 0 && (
+            <section className="feature-reel home-favorites">
+              <h2>{siblings.length > 0 ? `More from ${activeCategory?.name || 'the shop'}` : 'A few of my favorites'}</h2>
+              <FavoritesCarousel
+                items={moreProducts.map((product) => ({
+                  href: productHref(product),
+                  image: product.image,
+                  name: product.name,
+                  price: priceLabel(product),
+                }))}
+              />
+            </section>
+          )}
         </section>
       ) : !activeCategory ? (
         <>
           <section className="shop-intro">
             <p className="eyebrow">THE LOVE & CO. SHOP</p>
             <h1>Personal pieces, <i>made for your people.</i></h1>
-            <p>Choose a collection, make it yours, and we’ll carefully bring it to life.</p>
+            <p>Choose a collection, make it yours, and I’ll carefully bring it to life.</p>
             <TurnaroundNote />
           </section>
           <section className="shop-products shop-hub">
-            {SHOP_HUB.map((item) => (
+            {SHOP_HUB.map((item, index) => (
                 <Link
                   className="product-card"
                   href={item.shopPath}
@@ -320,11 +301,12 @@ function ShopContent({ category, productKey, products }) {
                     openCategory(item.id);
                   }}
                 >
-                  <StoreImage src={item.image} alt={item.name} sizes="(min-width: 1100px) 13vw, (min-width: 640px) 30vw, 46vw" />
+                  <StoreImage src={item.image} alt={item.name} fetchPriority={index === 0 ? 'high' : undefined} sizes="(min-width: 1100px) 23vw, (min-width: 640px) 30vw, 46vw" />
                   <div>
-                    {item.preorder && <p className="eyebrow">PREORDER</p>}
+                    {counts[item.id] === 0 ? <p className="eyebrow">COMING SOON</p> : item.preorder && <p className="eyebrow">PREORDER</p>}
                     <h2>{item.name}</h2>
                     <p>{item.detail}</p>
+                    {counts[item.id] > 0 && <p className="hub-count">{counts[item.id]} {counts[item.id] === 1 ? 'piece' : 'pieces'}</p>}
                   </div>
                 </Link>
             ))}
@@ -340,57 +322,41 @@ function ShopContent({ category, productKey, products }) {
             <TurnaroundNote />
           </section>
           <section className="catalog-controls">
-            <p>{visibleProducts.length} {visibleProducts.length === 1 ? 'piece' : 'pieces'}</p>
-            <label>Filter
-              <FancySelect
-                compact
-                value={priceFilter}
-                onChange={(value) => updateCatalogQuery('priceFilter', value, VALID_PRICE_FILTERS, 'all')}
-                options={[
-                  { value: 'all', label: 'All prices' },
-                  { value: 'under-30', label: 'Under $30' },
-                  { value: '30-plus', label: '$30 and up' },
-                ]}
-              />
-            </label>
-            <label>Sort
-              <FancySelect
-                compact
-                value={sort}
-                onChange={(value) => updateCatalogQuery('sort', value, VALID_SORTS, 'featured')}
-                options={[
-                  { value: 'featured', label: 'Featured' },
-                  { value: 'price-low', label: 'Price: low to high' },
-                  { value: 'price-high', label: 'Price: high to low' },
-                  { value: 'name', label: 'Name: A–Z' },
-                ]}
-              />
-            </label>
+            {visibleProducts.length > 0 && <p>{visibleProducts.length} {visibleProducts.length === 1 ? 'piece' : 'pieces'}</p>}
           </section>
           <section className="shop-products catalog-products">
-            {visibleProducts.map((product) => (
+            {visibleProducts.map((product, index) => (
               <article className="product-card" key={product.id}>
                 <ProductGallery
                   compact
+                  priority={index === 0}
                   images={productImages(product)}
                   name={product.name}
                   onActivate={() => openItem(product)}
                 />
                 <Link href={productHref(product)} onClick={(event) => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); openItem(product); }}>
                   <div>
-                    <p className="eyebrow">{activeCategory.preorder ? 'PREORDER' : 'CUSTOM EMBROIDERY'}</p>
+                    {activeCategory.preorder && <p className="eyebrow">PREORDER</p>}
                     <h2>{product.name}</h2>
                     <p>{product.detail}</p>
                   </div>
                 </Link>
                 <div className="product-bottom">
-                  <strong>{isPerPersonPackage(product) ? `$${basePrice(product).toFixed(2)} / person · $${PACKAGE_ORDER_DESIGN_FEE} design fee` : isTieredNapkins(product) ? `$${napkinUnitPrice(60)}–$${napkinUnitPrice(NAPKIN_MIN_QTY)} each · ${NAPKIN_MIN_QTY} minimum` : `$${basePrice(product).toFixed(2)}`}</strong>
+                  <strong>{priceLabel(product)}</strong>
                   <button onClick={() => startAdd(product)} type="button">Add to bag <Plus /></button>
                 </div>
               </article>
             ))}
           </section>
-          {visibleProducts.length === 0 && <p className="empty-catalog">Nothing is listed in this collection yet. <Link href="/custom">A custom order</Link> is always welcome.</p>}
+          {visibleProducts.length === 0 && (
+            <div className="empty-catalog">
+              <p>New pieces for this collection are still on the hoop. If you have something in mind, I’d love to stitch it just for you.</p>
+              <div className="inline-actions">
+                <Link className="soft-button" href="/custom">Ask about a custom piece</Link>
+                <Link className="outline-button" href="/shop">Browse all collections</Link>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -406,64 +372,12 @@ function ShopContent({ category, productKey, products }) {
                 ? napkinPicker(addingProduct)
                 : isBabyBundle(addingProduct)
                   ? addonPicker(addingProduct)
-                  : <p>${basePrice(addingProduct).toFixed(2)}</p>}
+                  : headlinePrice(addingProduct)}
             {designSection(addingProduct)}
             {designError && <p className="form-error" role="alert">{designError}</p>}
             <button className="studio-primary" type="button" onClick={() => addToCart(addingProduct, designDraft)}>Add to bag</button>
           </section>
         </div>
-      )}
-
-      {isBagOpen && (
-        <aside ref={bagDialog} tabIndex={-1} role="dialog" aria-modal="true" className="cart-drawer" aria-label="Shopping bag">
-          <button className="drawer-close" type="button" onClick={() => setIsBagOpen(false)} aria-label="Close bag"><X /></button>
-          <p className="eyebrow">YOUR BAG</p>
-          <h2>Good things are coming.</h2>
-          {bag.length === 0 ? <p>Your bag is waiting for something special.</p> : (
-            <>
-              <div className="cart-items">
-                {bag.map((item) => (
-                  <article className="cart-line" key={item.id}>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <span>{item.isCustom ? 'Price to be confirmed after review' : isPerPersonPackage(item) ? `$${basePrice(item).toFixed(2)} per person · hat + tote` : isTieredNapkins(item) ? `$${basePrice(item).toFixed(2)} each` : `$${basePrice(item).toFixed(2)} each`}</span>
-                      {!item.isCustom && item.wantsDesign && designFee(item) > 0 && (
-                        <span className="cart-design-fee">Custom design +${designFee(item).toFixed(2)}</span>
-                      )}
-                      {summarizeBundleAddons(item) && (
-                        <span className="cart-design-fee">{summarizeBundleAddons(item)}</span>
-                      )}
-                      {item.wantsDesign && summarizeDesign(item) && (
-                        <span className="cart-design-fee">{summarizeDesign(item)}</span>
-                      )}
-                    </div>
-                    <div className="cart-controls">
-                      <div>
-                        <button type="button" aria-label={`Remove one ${item.name}`} disabled={item.quantity <= (isTieredNapkins(item) ? NAPKIN_MIN_QTY : 1)} onClick={() => updateItem(item.id, { quantity: item.quantity - 1 })}><Dash /></button>
-                        <span>{item.quantity}</span>
-                        <button type="button" aria-label={`Add one ${item.name}`} disabled={item.quantity >= 500} onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}><Plus /></button>
-                      </div>
-                      <button type="button" className="remove-link" onClick={() => removeItem(item.id)}>Remove</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              {packageFee > 0 && (
-                <div className="cart-total">
-                  <span>One-time design fee</span>
-                  <strong>${packageFee.toFixed(2)}</strong>
-                </div>
-              )}
-              <div className="cart-total">
-                <span>{hasCustomItem ? 'Priced items subtotal' : 'Estimated total'}</span>
-                <strong>${total.toFixed(2)}</strong>
-              </div>
-              {hasCustomItem && <small>Custom items are quoted after review and are not included in this subtotal.</small>}
-              <TurnaroundNote compact />
-              <Link className="studio-primary" href="/checkout" onClick={() => setIsBagOpen(false)}>Continue to checkout</Link>
-            </>
-          )}
-        </aside>
       )}
     </main>
   );
