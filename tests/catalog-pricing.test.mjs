@@ -76,3 +76,12 @@ test('productImages prefers uploads, then the main image, then the gallery, with
   ]);
   assert.deepEqual(productImages(null), []);
 });
+
+test('every collection has a story with a photo that ships in public/', async () => {
+  const { CATEGORIES } = await import('../lib/catalog.js');
+  const { existsSync } = await import('node:fs');
+  for (const category of CATEGORIES) {
+    assert.ok(category.story?.heading && category.story?.body, `${category.id} story`);
+    assert.ok(existsSync(`public${category.story.image}`), `${category.id} story image`);
+  }
+});

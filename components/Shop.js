@@ -237,6 +237,28 @@ function ShopContent({ category, productKey, products }) {
     .filter((item) => item && item.id !== activeProduct.id)
     .slice(0, 3);
 
+  const hubCard = (item, index) => (
+    <Link
+      className="product-card"
+      href={item.shopPath}
+      key={item.id}
+      onClick={(event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        openCategory(item.id);
+      }}
+    >
+      <StoreImage src={item.image} alt={item.name} fetchPriority={index === 0 && !activeCategory ? 'high' : undefined} sizes="(min-width: 1100px) 23vw, (min-width: 640px) 30vw, 46vw" />
+      <div>
+        {counts[item.id] === 0 ? <p className="eyebrow">COMING SOON</p> : item.preorder && <p className="eyebrow">PREORDER</p>}
+        <h2>{item.name}</h2>
+        <p>{item.detail}</p>
+        {counts[item.id] > 0 && <p className="hub-count">{counts[item.id]} {counts[item.id] === 1 ? 'piece' : 'pieces'}</p>}
+      </div>
+    </Link>
+  );
+  const moreCollections = activeCategory ? SHOP_HUB.filter((item) => item.id !== activeCategory.id && counts[item.id] > 0) : [];
+
   return (
     <main className={`shop-page${activeProduct ? ' is-item' : activeCategory ? ' is-collection' : ' is-hub'}`}>
       {activeProduct ? (
@@ -290,26 +312,7 @@ function ShopContent({ category, productKey, products }) {
             <TurnaroundNote />
           </section>
           <section className="shop-products shop-hub">
-            {SHOP_HUB.map((item, index) => (
-                <Link
-                  className="product-card"
-                  href={item.shopPath}
-                  key={item.id}
-                  onClick={(event) => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                    event.preventDefault();
-                    openCategory(item.id);
-                  }}
-                >
-                  <StoreImage src={item.image} alt={item.name} fetchPriority={index === 0 ? 'high' : undefined} sizes="(min-width: 1100px) 23vw, (min-width: 640px) 30vw, 46vw" />
-                  <div>
-                    {counts[item.id] === 0 ? <p className="eyebrow">COMING SOON</p> : item.preorder && <p className="eyebrow">PREORDER</p>}
-                    <h2>{item.name}</h2>
-                    <p>{item.detail}</p>
-                    {counts[item.id] > 0 && <p className="hub-count">{counts[item.id]} {counts[item.id] === 1 ? 'piece' : 'pieces'}</p>}
-                  </div>
-                </Link>
-            ))}
+            {SHOP_HUB.map(hubCard)}
           </section>
         </>
       ) : (
@@ -356,6 +359,25 @@ function ShopContent({ category, productKey, products }) {
                 <Link className="outline-button" href="/shop">Browse all collections</Link>
               </div>
             </div>
+          )}
+          {activeCategory.story && (
+            <section className="split-story collection-story">
+              <StoreImage src={activeCategory.story.image} alt={activeCategory.name} sizes="(min-width: 800px) 45vw, 100vw" />
+              <div>
+                <p className="eyebrow">A NOTE FROM ANNA</p>
+                <h2>{activeCategory.story.heading}</h2>
+                <p>{activeCategory.story.body}</p>
+                <Link href="/custom" className="soft-button">Start a custom piece</Link>
+              </div>
+            </section>
+          )}
+          {moreCollections.length > 0 && (
+            <section className="collection-more">
+              <h2>More collections</h2>
+              <div className="shop-products shop-hub">
+                {moreCollections.map(hubCard)}
+              </div>
+            </section>
           )}
         </>
       )}
