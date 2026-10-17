@@ -130,11 +130,11 @@ h1, h2, h3, .shop-intro h1, .catalog-hero h1, .studio-hero h1, .auth-card h2, .a
 .reveal-hidden { opacity: 0; transform: translateY(12px); transition: none; }
 .product-card, .favorites-slide, .bundle-card { transition: transform .16s ease-out, box-shadow .16s ease-out; }
 /* Collection pages: hero copy rises in on load; cards stagger in once their section is revealed. */
-.catalog-hero > * { animation: rise-in .45s ease-out both; }
+.catalog-hero > * { animation: rise-in .45s ease-out backwards; }
 .catalog-hero > :nth-child(2) { animation-delay: .06s; }
 .catalog-hero > :nth-child(3) { animation-delay: .12s; }
 .catalog-hero > :nth-child(n+4) { animation-delay: .18s; }
-.shop-products:not(.reveal-hidden) .product-card { animation: rise-in .4s ease-out both; }
+.shop-products:not(.reveal-hidden) .product-card { animation: rise-in .4s ease-out backwards; }
 .shop-products .product-card:nth-child(2) { animation-delay: .06s; }
 .shop-products .product-card:nth-child(3) { animation-delay: .12s; }
 .shop-products .product-card:nth-child(4) { animation-delay: .18s; }
